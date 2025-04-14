@@ -1,10 +1,11 @@
 """
-Video generator module for combining images and audio into a complete video.
+Video generator module for combining images and audio into a complete video with advanced visual effects.
 """
 import os
 import glob
 import random
 from datetime import datetime
+import numpy as np
 from moviepy.editor import (
     ImageClip, 
     AudioFileClip, 
@@ -13,13 +14,190 @@ from moviepy.editor import (
     TextClip,
     ColorClip
 )
-from moviepy.video.fx import fadein, fadeout, resize
+from moviepy.video.fx import (
+    fadein, fadeout, resize, lum_contrast, painting, 
+    colorx, mirror_x, invert_colors, accel_decel, 
+    blackwhite, crop, vfx_frame
+)
 
 from src.utils.config import get_output_paths
 
 
+def apply_image_effects(clip, effect_name, **kwargs):
+    """
+    Apply various visual effects to an image clip based on effect name.
+    
+    Args:
+        clip (ImageClip): The clip to apply effects to
+        effect_name (str): The name of the effect to apply
+        **kwargs: Additional parameters for the effect
+        
+    Returns:
+        ImageClip: The modified clip with effects applied
+    """
+    clip_duration = clip.duration
+    
+    if effect_name == "ken_burns_zoom":
+        # Ken Burns Zoom Effect
+        zoom_factor = kwargs.get('zoom_factor', 1.08)
+        zoom_direction = kwargs.get('zoom_direction', 'in')  # 'in' or 'out'
+        
+        if zoom_direction == 'in':
+            # Zoom in effect (start small, end large)
+            return clip.resize(lambda t: max(1.0, zoom_factor**(t/clip_duration)))
+        else:
+            # Zoom out effect (start large, end small)
+            return clip.resize(lambda t: max(1.0, zoom_factor**(1-t/clip_duration)))
+            
+    elif effect_name == "slow_pan":
+        # Slow Pan Effect (left/right or up/down)
+        direction = kwargs.get('direction', random.choice(['left', 'right', 'up', 'down']))
+        pan_factor = kwargs.get('pan_factor', 0.1)
+        
+        w, h = clip.size
+        
+        # Create a larger clip to allow for panning
+        clip_large = clip.resize(1.1)  # Make it 10% larger
+        
+        if direction == 'left':
+            # Pan from right to left
+            return clip_large.set_position(lambda t: ('right', 'center')).crop(
+                x1=lambda t: w * pan_factor * (1-t/clip_duration),
+                y1=0,
+                width=w,
+                height=h
+            )
+        elif direction == 'right':
+            # Pan from left to right
+            return clip_large.set_position(lambda t: ('left', 'center')).crop(
+                x1=lambda t: w * pan_factor * (t/clip_duration),
+                y1=0,
+                width=w,
+                height=h
+            )
+        elif direction == 'up':
+            # Pan from bottom to top
+            return clip_large.set_position(lambda t: ('center', 'bottom')).crop(
+                x1=0,
+                y1=lambda t: h * pan_factor * (1-t/clip_duration),
+                width=w,
+                height=h
+            )
+        else:  # 'down'
+            # Pan from top to bottom
+            return clip_large.set_position(lambda t: ('center', 'top')).crop(
+                x1=0,
+                y1=lambda t: h * pan_factor * (t/clip_duration),
+                width=w,
+                height=h
+            )
+            
+    elif effect_name == "background_blur_center_text":
+        # Background Blur with Center Text
+        # Text should be added separately in the main function
+        # Here we just blur the background a bit
+        # This is a simplified version as true gaussian blur is complex in moviepy
+        return clip.fx(painting, saturation=1.2, black=0.001)
+        
+    elif effect_name == "color_boost":
+        # Color Boost (Contrast + Warm Tone)
+        contrast = kwargs.get('contrast', 50)
+        colorx_factor = kwargs.get('colorx_factor', 1.3)
+        
+        # First boost colors then adjust contrast
+        return clip.fx(colorx, colorx_factor).fx(lum_contrast, 0, contrast, 255)
+        
+    elif effect_name == "dark_overlay":
+        # Dark Overlay Effect
+        opacity = kwargs.get('opacity', 0.3)
+        
+        # Create a black color clip with the same size and duration
+        overlay = ColorClip(size=clip.size, color=(0, 0, 0), duration=clip.duration).set_opacity(opacity)
+        return CompositeVideoClip([clip, overlay])
+        
+    elif effect_name == "glow_effect":
+        # Glow / Light Leak Effect
+        # Simplified version: increase brightness and add a slight color tint
+        glow_color = kwargs.get('glow_color', 'warm')  # 'warm' or 'cool'
+        
+        if glow_color == 'warm':
+            # Warm glow (yellowish tint)
+            return clip.fx(colorx, 1.2).fx(lum_contrast, 20, 0, 255)
+        else:
+            # Cool glow (bluish tint)
+            tinted = clip.image_transform(
+                lambda frame: np.minimum(255, frame.astype(float) * np.array([0.9, 0.95, 1.1])[:, None, None]).astype('uint8')
+            )
+            return tinted.fx(lum_contrast, 10, 0, 255)
+        
+    elif effect_name == "cinematic_crop":
+        # Cinematic Crop (21:9 aspect ratio)
+        w, h = clip.size
+        
+        # Calculate the height for 21:9 aspect ratio
+        target_h = int(w * 9 / 21)
+        crop_amount = (h - target_h) // 2
+        
+        return clip.crop(y1=crop_amount, y2=h-crop_amount)
+        
+    elif effect_name == "vignette":
+        # Vignette Effect
+        vignette_intensity = kwargs.get('intensity', 0.8)
+        
+        def vignette_filter(get_frame, t):
+            frame = get_frame(t)
+            h, w = frame.shape[:2]
+            
+            # Create a vignette mask
+            Y, X = np.ogrid[:h, :w]
+            center_x, center_y = w/2, h/2
+            dist_from_center = np.sqrt((X - center_x)**2 + (Y - center_y)**2)
+            
+            # Normalize the distance
+            max_dist = np.sqrt(center_x**2 + center_y**2)
+            dist_norm = dist_from_center / max_dist
+            
+            # Create the vignette as a combination of the original and darkened image
+            mask = 1 - vignette_intensity * dist_norm
+            mask = np.clip(mask, 0, 1)
+            
+            # Apply the mask to each color channel
+            masked = np.copy(frame)
+            for i in range(3):
+                masked[:,:,i] = frame[:,:,i] * mask
+                
+            return masked
+            
+        return clip.transform(vignette_filter)
+        
+    elif effect_name == "subtle_grain":
+        # Subtle Grain / Texture
+        grain_intensity = kwargs.get('intensity', 0.07)
+        
+        def add_grain(get_frame, t):
+            frame = get_frame(t)
+            noise = np.random.randint(0, 255 * grain_intensity, frame.shape).astype('uint8')
+            return np.clip(frame.astype(int) + noise - 127 * grain_intensity, 0, 255).astype('uint8')
+            
+        return clip.transform(add_grain)
+        
+    elif effect_name == "mirror_effect":
+        # Mirror effect (flip horizontally)
+        return clip.fx(mirror_x)
+        
+    elif effect_name == "bw_partial":
+        # Partial black and white effect
+        return clip.fl(lambda gf, t: 
+                      np.dstack([blackwhite(gf(t))[:,:,0], gf(t)[:,:,1:]/2 + blackwhite(gf(t))[:,:,1:]/2])
+                     )
+    
+    # If no effect matches, return the original clip
+    return clip
+
+
 def create_video(audio_file, image_files, output_name=None, duration_per_image=5.0, 
-                 fade_duration=0.5, add_transitions=True, add_text_overlay=True):
+                 fade_duration=0.5, add_transitions=True, add_text_overlay=True,
+                 apply_effects=True, min_effects=7):
     """
     Creates a video from a list of images and an audio file.
     
@@ -91,6 +269,8 @@ def create_video(audio_file, image_files, output_name=None, duration_per_image=5
                 target_height = 1080
                 img_clip = img_clip.resize(width=target_width, height=target_height)
                 
+                # We'll apply effects to the whole video later, not to individual images
+                
                 # Add fade in/out effects if requested
                 if add_transitions:
                     if i == 0:  # First clip
@@ -144,6 +324,55 @@ def create_video(audio_file, image_files, output_name=None, duration_per_image=5
         # Concatenate clips
         print("Concatenating video clips...")
         final_clip = concatenate_videoclips(video_clips, method="compose")
+        
+        # Apply visual effects to the entire video if requested
+        if apply_effects:
+            # List of all available effects
+            all_effects = [
+                "ken_burns_zoom", "slow_pan", "background_blur_center_text", 
+                "color_boost", "dark_overlay", "glow_effect", 
+                "cinematic_crop", "vignette", "subtle_grain", "mirror_effect", "bw_partial"
+            ]
+            
+            # Randomly choose how many effects to apply (at least min_effects, up to length of all_effects)
+            num_effects = random.randint(min_effects, min(len(all_effects), min_effects + 2))
+            
+            # Randomly select effects to apply
+            selected_effects = random.sample(all_effects, num_effects)
+            print(f"\nApplying {num_effects} effects to the entire video: {', '.join(selected_effects)}")
+            
+            # Apply each selected effect with random parameters to the entire video
+            for effect in selected_effects:
+                # Random parameters based on effect type
+                if effect == "ken_burns_zoom":
+                    params = {
+                        'zoom_factor': random.uniform(1.05, 1.1),
+                        'zoom_direction': random.choice(['in', 'out'])
+                    }
+                elif effect == "slow_pan":
+                    params = {
+                        'direction': random.choice(['left', 'right', 'up', 'down']),
+                        'pan_factor': random.uniform(0.05, 0.15)
+                    }
+                elif effect == "color_boost":
+                    params = {
+                        'contrast': random.randint(30, 60),
+                        'colorx_factor': random.uniform(1.1, 1.4)
+                    }
+                elif effect == "dark_overlay":
+                    params = {'opacity': random.uniform(0.2, 0.4)}
+                elif effect == "glow_effect":
+                    params = {'glow_color': random.choice(['warm', 'cool'])}
+                elif effect == "vignette":
+                    params = {'intensity': random.uniform(0.6, 0.9)}
+                elif effect == "subtle_grain":
+                    params = {'intensity': random.uniform(0.05, 0.1)}
+                else:
+                    params = {}
+                    
+                # Apply the effect to the entire video
+                print(f"  Applying {effect} effect to the entire video...")
+                final_clip = apply_image_effects(final_clip, effect, **params)
         
         # Add audio
         print("Adding audio to video...")
