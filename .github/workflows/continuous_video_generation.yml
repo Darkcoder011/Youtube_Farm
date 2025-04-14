@@ -285,17 +285,105 @@ jobs:
           echo "- Waiting ${WAIT_MINUTES} minutes between videos"
           echo "- Event type: ${GITHUB_EVENT_NAME}"
           
-          # Check Python and package versions
+          # More verbose Python and package checks to debug the sticking point
+          echo "=== Checking Python installation ==="
           python -c "import sys; print('Python version:', sys.version)"
-          python -c "import google.genai as genai; print('Google Genai version:')"
           
-          # Run the generator with time limit
+          echo "=== Checking Gemini API ==="
+          python -c "import google.genai as genai; print('Google Genai version: OK')"
+          
+          echo "=== Verifying src directory structure ==="
+          ls -la src/
+          ls -la src/utils/
+          ls -la src/generators/
+          
+          echo "=== Verifying main.py functions ==="
+          python -c "import main; print('main.py successfully imported'); print('Available functions:', [f for f in dir(main) if not f.startswith('_') and callable(getattr(main, f))])"
+          
+          echo "=== Verifying topic_data functions ==="
+          python -c "from src.utils.topic_data import get_random_topics; print('Random topics successfully imported'); sample = get_random_topics(1); print('Sample topic:', sample)"
+          
+          # Run with better error handling
           if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             echo "This is a scheduled run. Using default 3-hour runtime."
-            python run_with_timeout.py --duration 3.0 --wait 2
+            python -c "
+# Direct simplified execution to isolate the issue
+import sys
+import os
+
+print('Starting direct script execution to diagnose stuck workflow')
+
+# Add the current directory to the path
+sys.path.append('.')
+
+# Try importing each component separately to see where it fails
+try:
+    print('Importing main module...')
+    import main
+    print('✓ main.py imported successfully')
+    
+    print('\nTesting topic generation...')
+    from src.utils.topic_data import get_random_topics
+    topics = get_random_topics(1)
+    print(f'✓ Topics generated: {topics}')
+    
+    print('\nAttempting to run main function with auto mode...')
+    # Run the main function with auto mode
+    result = main.main(auto_mode=True)
+    print(f'✓ Main function executed with result: {result}')
+    
+    print('\nTest completed successfully!')
+except Exception as e:
+    print(f'\n❌ ERROR: {str(e)}')
+    import traceback
+    traceback.print_exc()
+    print('\nDetailed system information:')
+    print(f'Python version: {sys.version}')
+    print(f'Current directory: {os.getcwd()}')
+    print('Directory contents:')
+    print(os.listdir('.'))
+    sys.exit(1)
+            "
           else
             echo "This is a manual run. Using provided parameters."
-            python run_with_timeout.py --duration $DURATION_HOURS --wait $WAIT_MINUTES
+            python -c "
+# Direct simplified execution to diagnose stuck workflow
+import sys
+import os
+
+print('Starting direct script execution to diagnose stuck workflow')
+
+# Add the current directory to the path
+sys.path.append('.')
+
+# Try importing each component separately to see where it fails
+try:
+    print('Importing main module...')
+    import main
+    print('✓ main.py imported successfully')
+    
+    print('\nTesting topic generation...')
+    from src.utils.topic_data import get_random_topics
+    topics = get_random_topics(1)
+    print(f'✓ Topics generated: {topics}')
+    
+    print('\nAttempting to run main function with auto mode...')
+    # Run the main function with auto mode
+    result = main.main(auto_mode=True)
+    print(f'✓ Main function executed with result: {result}')
+    
+    print('\nTest completed successfully!')
+except Exception as e:
+    print(f'\n❌ ERROR: {str(e)}')
+    import traceback
+    traceback.print_exc()
+    print('\nDetailed system information:')
+    print(f'Python version: {sys.version}')
+    print(f'Current directory: {os.getcwd()}')
+    print('Directory contents:')
+    print(os.listdir('.'))
+    sys.exit(1)
+            "
           fi
       
       - name: Cleanup all generated files
