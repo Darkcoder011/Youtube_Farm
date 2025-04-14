@@ -342,18 +342,39 @@ def send_telegram_notification(folder_id, folder_name, title, video_duration):
         bool: True if notification was sent successfully, False otherwise
     """
     try:
-        # Format the message
+        # Helper function to escape special Markdown characters
+        def escape_markdown(text):
+            if not text:
+                return ""
+            # Escape special Markdown characters: _ * [ ] ( ) ~ ` > #
+            chars_to_escape = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#']
+            for char in chars_to_escape:
+                text = text.replace(char, f"\\{char}")
+            return text
+        
+        # Format the message with escaped variables
         minutes = int(video_duration // 60)
         seconds = int(video_duration % 60)
         duration_formatted = f"{minutes}:{seconds:02d}"
         
-        message = f"🎬 *Hey boss! Your self-motivation video is ready!* 🎬\n\n"
-        message += f"*Title:* {title}\n"
-        message += f"*Duration:* {duration_formatted}\n"
-        message += f"*Folder:* {folder_name}\n\n"
-        message += f"📁 [View in Google Drive](https://drive.google.com/drive/folders/{folder_id})\n\n"
+        # Helper function to escape HTML special characters
+        def escape_html(text):
+            if not text:
+                return ""
+            return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        
+        # Escape variables for HTML
+        safe_title = escape_html(title)
+        safe_folder_name = escape_html(folder_name)
+        
+        # Create message with HTML formatting
+        message = f"🎬 <b>Hey boss! Your self-motivation video is ready!</b> 🎬\n\n"
+        message += f"<b>Title:</b> {safe_title}\n"
+        message += f"<b>Duration:</b> {duration_formatted}\n"
+        message += f"<b>Folder:</b> {safe_folder_name}\n\n"
+        message += f"📁 <a href=\"https://drive.google.com/drive/folders/{folder_id}\">View in Google Drive</a>\n\n"
         message += "When you're free, please check it out! 👍\n"
-        message += f"_Generated on {datetime.now().strftime('%Y-%m-%d at %H:%M')} by your AI assistant_"
+        message += f"<i>Generated on {datetime.now().strftime('%Y-%m-%d at %H:%M')} by your AI assistant</i>"
         
         # API endpoint for sending messages
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -381,7 +402,7 @@ def send_telegram_notification(folder_id, folder_name, title, video_duration):
             params = {
                 "chat_id": chat_id,
                 "text": message,
-                "parse_mode": "Markdown",
+                "parse_mode": "HTML",  # Changed from Markdown to HTML
                 "disable_web_page_preview": True
             }
             
