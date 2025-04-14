@@ -192,7 +192,8 @@ def create_video(audio_file, image_files, output_name=None, duration_per_image=5
                     title=video_title,
                     description=video_description,
                     tags=video_tags,
-                    thumbnail_path=thumbnail_path
+                    thumbnail_path=thumbnail_path,
+                    video_duration=audio_duration
                 )
                 
                 if folder_id:

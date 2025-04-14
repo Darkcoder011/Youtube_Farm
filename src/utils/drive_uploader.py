@@ -5,6 +5,8 @@ import os
 import json
 import requests
 import io
+import time
+from datetime import datetime
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseUpload
 from google.oauth2 import service_account
@@ -12,6 +14,14 @@ from google.oauth2 import service_account
 # Parent folder ID for "Self" in Google Drive
 PARENT_FOLDER_ID = "11BoyAH1HwU2an_2w39l2TF0-Sj3KgJ-H"
 SERVICE_ACCOUNT_URL = "https://drive.google.com/file/d/1NC0n-j3Wrp7mWpSOodC7zupwLCeVcSsj/view?usp=sharing"
+
+# Google Sheet information
+SPREADSHEET_ID = "1eZ4AQR-4P0Us9UGeMxE576K6bA2hDL3naLRUb3_WmUk"
+
+# Telegram Bot information
+TELEGRAM_TOKEN = "7971818052:AAE6ptciZrEad_ExTk2gGuFDJMFx2n9nzq4"
+TELEGRAM_CHAT_ID = "-1002493560505"
+TELEGRAM_THREAD_ID = "923"
 
 def download_service_account(url, save_path):
     """
@@ -68,6 +78,31 @@ def get_drive_service(credentials_path):
         return service
     except Exception as e:
         print(f"❌ Error initializing Drive service: {str(e)}")
+        return None
+
+
+def get_sheets_service(credentials_path):
+    """
+    Initialize and return a Google Sheets API service using service account credentials.
+    
+    Args:
+        credentials_path (str): Path to the service account credentials JSON file
+        
+    Returns:
+        object: Google Sheets API service or None if initialization failed
+    """
+    try:
+        # Load credentials from the service account file
+        credentials = service_account.Credentials.from_service_account_file(
+            credentials_path, 
+            scopes=['https://www.googleapis.com/auth/spreadsheets']
+        )
+        
+        # Build the Sheets API service
+        service = build('sheets', 'v4', credentials=credentials)
+        return service
+    except Exception as e:
+        print(f"❌ Error initializing Sheets service: {str(e)}")
         return None
 
 def create_folder(service, folder_name, parent_folder_id=None):
@@ -219,9 +254,137 @@ def get_next_folder_number(service, parent_folder_id):
         import time
         return int(time.time()) % 1000  # Use last 3 digits of current timestamp
 
-def upload_video_with_metadata(video_path, title, description, tags, thumbnail_path=None):
+def log_to_spreadsheet(credentials_path, folder_id, folder_name, title, description, tags, video_duration, creation_date):
+    """
+    Log video information to a Google Spreadsheet.
+    
+    Args:
+        credentials_path (str): Path to service account credentials
+        folder_id (str): Google Drive folder ID containing the video
+        folder_name (str): Name of the folder
+        title (str): Video title
+        description (str): Video description
+        tags (str/list): Video tags
+        video_duration (float): Duration of the video in seconds
+        creation_date (str): Date when the video was created
+        
+    Returns:
+        bool: True if logging was successful, False otherwise
+    """
+    try:
+        # Initialize Sheets service
+        sheets_service = get_sheets_service(credentials_path)
+        if not sheets_service:
+            return False
+        
+        # Convert tags to string if it's a list
+        if isinstance(tags, list):
+            tags = ", ".join(tags)
+        
+        # Format the timestamp
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Format duration as minutes:seconds
+        minutes = int(video_duration // 60)
+        seconds = int(video_duration % 60)
+        duration_formatted = f"{minutes}:{seconds:02d}"
+        
+        # Truncate description if too long for sheet
+        short_description = description[:100] + "..." if len(description) > 100 else description
+        
+        # Prepare row data
+        row_data = [
+            timestamp,               # Upload timestamp
+            title,                   # Video title
+            short_description,       # Short description
+            tags,                    # Tags
+            duration_formatted,      # Formatted duration
+            creation_date,           # Creation date
+            folder_name,             # Folder name
+            f"https://drive.google.com/drive/folders/{folder_id}"  # Folder URL
+        ]
+        
+        # Append row to the sheet
+        range_name = "Sheet1!A:H"  # Assuming we're using columns A through H
+        body = {
+            'values': [row_data]
+        }
+        
+        result = sheets_service.spreadsheets().values().append(
+            spreadsheetId=SPREADSHEET_ID,
+            range=range_name,
+            valueInputOption="USER_ENTERED",
+            insertDataOption="INSERT_ROWS",
+            body=body
+        ).execute()
+        
+        print(f"✅ Successfully logged video information to Google Sheet")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error logging to spreadsheet: {str(e)}")
+        return False
+
+
+def send_telegram_notification(folder_id, folder_name, title, video_duration):
+    """
+    Send a notification to Telegram about the newly uploaded video.
+    
+    Args:
+        folder_id (str): Google Drive folder ID containing the video
+        folder_name (str): Name of the folder
+        title (str): Video title
+        video_duration (float): Duration of the video in seconds
+        
+    Returns:
+        bool: True if notification was sent successfully, False otherwise
+    """
+    try:
+        # Format the message
+        minutes = int(video_duration // 60)
+        seconds = int(video_duration % 60)
+        duration_formatted = f"{minutes}:{seconds:02d}"
+        
+        message = f"🎬 *Hey boss! Your self-motivation video is ready!* 🎬\n\n"
+        message += f"*Title:* {title}\n"
+        message += f"*Duration:* {duration_formatted}\n"
+        message += f"*Folder:* {folder_name}\n\n"
+        message += f"📁 [View in Google Drive](https://drive.google.com/drive/folders/{folder_id})\n\n"
+        message += "When you're free, please check it out! 👍\n"
+        message += f"_Generated on {datetime.now().strftime('%Y-%m-%d at %H:%M')} by your AI assistant_"
+        
+        # API endpoint for sending messages
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        
+        # Parameters for the request
+        params = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "message_thread_id": TELEGRAM_THREAD_ID,
+            "text": message,
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True
+        }
+        
+        # Send the request
+        response = requests.post(url, params=params)
+        
+        # Check if the request was successful
+        if response.status_code == 200 and response.json().get("ok"):
+            print(f"✅ Successfully sent notification to Telegram")
+            return True
+        else:
+            print(f"⚠️ Telegram API responded with: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error sending Telegram notification: {str(e)}")
+        return False
+
+
+def upload_video_with_metadata(video_path, title, description, tags, thumbnail_path=None, video_duration=None):
     """
     Upload a video and its metadata to Google Drive in a structured folder.
+    Then log it to Google Sheets and send a Telegram notification.
     
     Args:
         video_path (str): Path to the video file
@@ -229,6 +392,7 @@ def upload_video_with_metadata(video_path, title, description, tags, thumbnail_p
         description (str): Video description
         tags (list): List of tags for the video
         thumbnail_path (str, optional): Path to the thumbnail image
+        video_duration (float, optional): Duration of the video in seconds
         
     Returns:
         str: ID of the folder containing the uploaded content or None if failed
@@ -278,10 +442,35 @@ def upload_video_with_metadata(video_path, title, description, tags, thumbnail_p
         tags_id = upload_text_content(service, tags_text, "tags.txt", folder_id)
         
         # 4. Thumbnail (if provided)
+        thumb_id = None
         if thumbnail_path and os.path.exists(thumbnail_path):
             thumb_id = upload_file(service, thumbnail_path, folder_id)
         
         print(f"✅ Successfully uploaded video and metadata to folder: {folder_name}")
+        
+        # Get creation date
+        creation_date = datetime.now().strftime("%Y-%m-%d")
+        
+        # Log to Google Sheet
+        sheet_logged = log_to_spreadsheet(
+            credentials_path=credentials_path,
+            folder_id=folder_id,
+            folder_name=folder_name,
+            title=title,
+            description=description,
+            tags=tags,
+            video_duration=video_duration if video_duration else 0,
+            creation_date=creation_date
+        )
+        
+        # Send Telegram notification
+        telegram_sent = send_telegram_notification(
+            folder_id=folder_id,
+            folder_name=folder_name,
+            title=title,
+            video_duration=video_duration if video_duration else 0
+        )
+        
         return folder_id
     
     except Exception as e:
