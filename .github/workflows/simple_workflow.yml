@@ -90,7 +90,7 @@ jobs:
           echo "# Set the duration based on workflow input" >> run_main_loop.py
           echo "duration_hours = float('$DURATION_HOURS')" >> run_main_loop.py
           echo "wait_seconds = $WAIT_SECONDS" >> run_main_loop.py
-          echo "print(f'Will run for {duration_hours} hours with {wait_seconds} seconds between videos')" >> run_main_loop.py
+          echo "print(f\"Will run for {duration_hours} hours with {wait_seconds} seconds between videos\")" >> run_main_loop.py
           echo "" >> run_main_loop.py
           echo "# Calculate end time if duration is not 0 (unlimited)" >> run_main_loop.py
           echo "end_time = None" >> run_main_loop.py
@@ -105,7 +105,7 @@ jobs:
           echo "    while True:" >> run_main_loop.py
           echo "        video_count += 1" >> run_main_loop.py
           echo "        gen_start = datetime.datetime.now()" >> run_main_loop.py
-          echo "        print(f'\n{'-'*80}\nStarting video generation #{video_count} at {gen_start.strftime("%Y-%m-%d %H:%M:%S")}\n{'-'*80}')" >> run_main_loop.py
+          echo "        print(f\"\n{'='*80}\nStarting video generation #{video_count} at {gen_start.strftime('%Y-%m-%d %H:%M:%S')}\n{'='*80}\")" >> run_main_loop.py
           echo "" >> run_main_loop.py
           echo "        # Run main.py with auto mode enabled" >> run_main_loop.py
           echo "        cmd = ['python', 'main.py', '--auto']" >> run_main_loop.py
@@ -114,7 +114,7 @@ jobs:
           echo "        # Calculate and display duration" >> run_main_loop.py
           echo "        gen_end = datetime.datetime.now()" >> run_main_loop.py
           echo "        duration = (gen_end - gen_start).total_seconds()" >> run_main_loop.py
-          echo "        print(f'\nVideo #{video_count} completed in {duration:.1f} seconds')" >> run_main_loop.py
+          echo "        print(f\"\nVideo #{video_count} completed in {duration:.1f} seconds\")" >> run_main_loop.py
           echo "" >> run_main_loop.py
           echo "        # Check if we should stop" >> run_main_loop.py
           echo "        if end_time and time.time() >= end_time:" >> run_main_loop.py
@@ -122,18 +122,18 @@ jobs:
           echo "            break" >> run_main_loop.py
           echo "" >> run_main_loop.py
           echo "        # Wait before starting next video" >> run_main_loop.py
-          echo "        print(f'Waiting {wait_seconds} seconds before starting next video...')" >> run_main_loop.py
+          echo "        print(f\"Waiting {wait_seconds} seconds before starting next video...\")" >> run_main_loop.py
           echo "        time.sleep(wait_seconds)" >> run_main_loop.py
           echo "" >> run_main_loop.py
           echo "except KeyboardInterrupt:" >> run_main_loop.py
           echo "    print('\nReceived keyboard interrupt, stopping video generation')" >> run_main_loop.py
           echo "except Exception as e:" >> run_main_loop.py
-          echo "    print(f'\nError in video generation loop: {str(e)}')" >> run_main_loop.py
+          echo "    print(f\"\nError in video generation loop: {str(e)}\")" >> run_main_loop.py
           echo "finally:" >> run_main_loop.py
           echo "    # Calculate and display total runtime" >> run_main_loop.py
           echo "    end_time = datetime.datetime.now()" >> run_main_loop.py
           echo "    total_runtime = (end_time - start_time).total_seconds() / 3600  # in hours" >> run_main_loop.py
-          echo "    print(f'\n{'-'*80}\nVideo generation complete!\nTotal videos created: {video_count}\nTotal runtime: {total_runtime:.2f} hours\n{'-'*80}')" >> run_main_loop.py
+          echo "    print(f\"\n{'='*80}\nVideo generation complete!\nTotal videos created: {video_count}\nTotal runtime: {total_runtime:.2f} hours\n{'='*80}\")" >> run_main_loop.py
           
           # Run the wrapper script
           python run_main_loop.py
