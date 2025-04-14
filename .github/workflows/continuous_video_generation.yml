@@ -130,11 +130,13 @@ jobs:
                       return False
                   return time.time() >= end_time
               
-              # Import the continuous generator
+              # Set up direct imports from main.py instead of using continuous_runner
               sys.path.append('.')
-              import continuous_runner
               
-              # Custom wrapper for continuous_runner that will exit after duration
+              # Import topic generation function
+              from src.utils.topic_data import get_random_topics
+              
+              # Custom wrapper for direct main.py execution that will exit after duration
               def time_limited_generator(wait_time_minutes):
                   """Wrapper that will exit when time limit is reached"""
                   videos_created = 0
@@ -179,13 +181,14 @@ jobs:
                                   
                                   # Import the main function to run one video generation
                                   from main import main as generate_one_video
-                                  import sys
+                                  from src.utils.topic_data import get_random_topics
                                   
-                                  # Set up auto mode and a random topic
-                                  sys.argv = ['main.py', '--auto', '--topic', continuous_runner.generate_random_topic()]
+                                  # Get a random topic
+                                  random_topic = random.choice(get_random_topics(1))
+                                  print(f"Selected random topic: {random_topic}")
                                   
-                                  # Run the generator
-                                  result = generate_one_video()
+                                  # Run the generator with auto mode
+                                  result = generate_one_video(auto_mode=True, voice=None, skip_audio=False, skip_video=False)
                                   
                                   # Calculate time taken
                                   end_time_video = time.time()
