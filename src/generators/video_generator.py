@@ -17,8 +17,9 @@ from moviepy.editor import (
 from moviepy.video.fx import (
     fadein, fadeout, resize, lum_contrast, painting, 
     colorx, mirror_x, invert_colors, accel_decel, 
-    blackwhite, crop, vfx_frame
+    blackwhite, crop
 )
+# vfx_frame is not available in all versions of MoviePy
 
 from src.utils.config import get_output_paths
 
