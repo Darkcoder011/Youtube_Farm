@@ -1,0 +1,217 @@
+name: Continuous Video Generation (3 Hours)
+
+on:
+  # Manual trigger with customizable parameters
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Duration to run in hours (0 for unlimited)'
+        required: true
+        default: '3.0'
+      wait_minutes:
+        description: 'Minutes to wait between video generations'
+        required: true
+        default: '2'
+  
+  # Run on schedule (once a day at 2 AM UTC)
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  generate_videos:
+    name: Generate Motivational Videos
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 hours exactly
+    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Create required directories
+        run: |
+          mkdir -p output/images
+          mkdir -p output/scripts
+          mkdir -p output/audio
+          mkdir -p output/videos
+          mkdir -p credentials
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          # Google API packages
+          pip uninstall -y google-generativeai || true
+          pip install google-genai==0.1.0
+          
+          # Video generation packages
+          pip install moviepy==1.0.3 decorator==4.4.2 imageio==2.9.0 imageio-ffmpeg==0.4.5
+          pip install tqdm==4.64.1 numpy>=1.17.3 proglog==0.1.10
+          
+          # Audio generation
+          pip install kokoro>=0.9.2
+          
+          # System dependencies
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libsndfile1 imagemagick espeak-ng
+      
+      - name: Display system and environment info
+        run: |
+          python --version
+          pip list
+          echo "Current directory:"
+          ls -la
+          echo "Source directory structure:"
+          ls -la src/
+          ls -la src/utils/
+          ls -la src/generators/
+      
+      - name: Create continuous generation script
+        run: |
+          # Create a Python script that will run continuously for 3 hours
+          cat > continuous_gen.py << EOF
+#!/usr/bin/env python3
+import sys
+import os
+import time
+import traceback
+from datetime import datetime, timedelta
+
+def main():
+    # Get parameters from environment variables or use defaults
+    duration_hours = float(os.environ.get('DURATION_HOURS', '3.0'))
+    wait_minutes = int(os.environ.get('WAIT_MINUTES', '2'))
+    
+    print(f"=== Continuous Video Generation ===")
+    print(f"Running for {duration_hours} hours with {wait_minutes} minutes between videos")
+    
+    # Calculate end time
+    start_time = time.time()
+    end_time = start_time + (duration_hours * 3600)  # Convert hours to seconds
+    end_datetime = datetime.now() + timedelta(hours=duration_hours)
+    print(f"Will run until approximately {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    videos_created = 0
+    total_time = 0
+    
+    try:
+        while time.time() < end_time:
+            remaining_seconds = max(0, end_time - time.time())
+            remaining_hours = int(remaining_seconds // 3600)
+            remaining_minutes = int((remaining_seconds % 3600) // 60)
+            
+            print(f"\n\n{'='*60}")
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"Starting video generation #{videos_created + 1} at {timestamp}")
+            print(f"Time remaining: {remaining_hours}h {remaining_minutes}m")
+            print(f"{'='*60}\n")
+            
+            # If less than 6 minutes remain, don't start a new video
+            if remaining_seconds < 360:  # 6 minutes in seconds
+                print(f"Less than 6 minutes remaining. Not enough time to generate another video.")
+                print(f"Waiting for the workflow to complete...")
+                break
+            
+            # Record start time for this video
+            video_start = time.time()
+            
+            try:
+                # Import the main module
+                import main
+                
+                # Run the video generation
+                print("Running main.main() with auto_mode=True...")
+                result = main.main(auto_mode=True)
+                
+                # Record success
+                video_end = time.time()
+                video_time = video_end - video_start
+                total_time += video_time
+                videos_created += 1
+                
+                minutes = int(video_time // 60)
+                seconds = int(video_time % 60)
+                print(f"\n✅ Video #{videos_created} completed successfully!")
+                print(f"   Time taken: {minutes}m {seconds}s")
+                
+                # Calculate average time
+                avg_time = total_time / videos_created
+                avg_minutes = int(avg_time // 60)
+                avg_seconds = int(avg_time % 60)
+                print(f"   Average time per video: {avg_minutes}m {avg_seconds}s")
+                
+            except Exception as e:
+                print(f"\n❌ Error during video generation: {str(e)}")
+                traceback.print_exc()
+                print("Will try again after the wait period.")
+            
+            # Check if we still have time for waiting + another video
+            if time.time() >= end_time:
+                print(f"Time limit reached. Exiting.")
+                break
+            
+            # Wait before next generation
+            wait_seconds = wait_minutes * 60
+            next_time = (datetime.now() + timedelta(minutes=wait_minutes)).strftime("%H:%M:%S")
+            print(f"\nWaiting {wait_minutes} minutes before next video generation")
+            print(f"Next video will start around {next_time}")
+            
+            # Wait in smaller increments to be responsive to timeout
+            wait_start = time.time()
+            while time.time() - wait_start < wait_seconds:
+                if time.time() >= end_time:
+                    print(f"Time limit reached during wait period. Exiting.")
+                    break
+                remaining_wait = int(wait_seconds - (time.time() - wait_start))
+                if remaining_wait % 30 == 0 and remaining_wait > 0:  # Show countdown every 30s
+                    print(f"  {remaining_wait} seconds remaining until next video...")
+                time.sleep(1)  # Sleep 1 second at a time
+        
+        print(f"\n\n{'='*60}")
+        print(f"Continuous generation complete!")
+        print(f"Total videos created: {videos_created}")
+        print(f"Total runtime: {int((time.time() - start_time) // 60)} minutes")
+        print(f"{'='*60}")
+        
+    except KeyboardInterrupt:
+        print("\nProcess interrupted. Exiting gracefully.")
+    except Exception as e:
+        print(f"Fatal error: {str(e)}")
+        traceback.print_exc()
+        return 1
+    
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF
+          chmod +x continuous_gen.py
+      
+      - name: Run continuous video generation
+        env:
+          DURATION_HOURS: ${{ github.event.inputs.duration || '3.0' }}
+          WAIT_MINUTES: ${{ github.event.inputs.wait_minutes || '2' }}
+        run: |
+          echo "=== Starting Continuous Video Generation ==="
+          echo "- Running for ${DURATION_HOURS} hours"
+          echo "- Waiting ${WAIT_MINUTES} minutes between videos"
+          echo "- Start time: $(date)"
+          echo "- Estimated end time: $(date -d "+${DURATION_HOURS} hours")"
+          echo "=== Starting Execution ==="
+          
+          # Run the continuous generation script
+          python continuous_gen.py
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "=== Continuous Generation Workflow Complete ==="
+          echo "Final directory contents:"
+          ls -la output/videos/
+          echo "Check your Google Drive folder for uploaded videos."
