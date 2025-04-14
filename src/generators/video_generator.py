@@ -21,9 +21,18 @@ except ImportError:
 
 from src.utils.config import get_output_paths
 
+# Import the Drive uploader module (will be used only after successful video creation)
+try:
+    from src.utils import drive_uploader
+    DRIVE_UPLOAD_AVAILABLE = True
+except ImportError:
+    print("Google Drive upload functionality not available. Will skip uploading.")
+    DRIVE_UPLOAD_AVAILABLE = False
+
 
 def create_video(audio_file, image_files, output_name=None, duration_per_image=5.0, 
-                 fade_duration=0.5, add_transitions=False, add_text_overlay=False, add_basic_filters=True):
+                 fade_duration=0.5, add_transitions=False, add_text_overlay=False, add_basic_filters=True,
+                 upload_to_drive=True, video_title=None, video_description=None, video_tags=None):
     """
     Creates a basic video from a list of images and an audio file.
     Simplified version for maximum Colab compatibility with optional basic filters.
@@ -37,6 +46,10 @@ def create_video(audio_file, image_files, output_name=None, duration_per_image=5
         add_transitions (bool, optional): Whether to add basic fade transitions
         add_text_overlay (bool, optional): Not used in simplified version
         add_basic_filters (bool, optional): Whether to add very basic video filters
+        upload_to_drive (bool, optional): Whether to upload the video to Google Drive
+        video_title (str, optional): Title for the video (for metadata)
+        video_description (str, optional): Description for the video (for metadata)
+        video_tags (list/str, optional): Tags for the video (for metadata)
         
     Returns:
         str: Path to the created video file
@@ -146,6 +159,50 @@ def create_video(audio_file, image_files, output_name=None, duration_per_image=5
         )
         
         print(f"✅ Video successfully created: {video_path}")
+        
+        # Upload to Google Drive if requested and available
+        if upload_to_drive and DRIVE_UPLOAD_AVAILABLE:
+            try:
+                print("\n--- Starting Google Drive Upload ---")
+                
+                # Use video name as title if not provided
+                if not video_title:
+                    video_title = os.path.basename(video_path).split('.')[0]
+                    # Clean up the title a bit
+                    video_title = video_title.replace('_', ' ').title()
+                
+                # Generate a simple description if not provided
+                if not video_description:
+                    video_description = f"Motivational video generated on {datetime.now().strftime('%Y-%m-%d')}\n"
+                    video_description += f"Duration: {audio_duration:.2f} seconds\n"
+                    video_description += f"Contains {num_images} images\n"
+                
+                # Generate some default tags if not provided
+                if not video_tags:
+                    video_tags = ["motivation", "inspiration", "success", "personal development"]
+                
+                # Find the first image to use as thumbnail
+                thumbnail_path = None
+                if image_files and len(image_files) > 0:
+                    thumbnail_path = image_files[0]
+                
+                # Upload to Drive
+                folder_id = drive_uploader.upload_video_with_metadata(
+                    video_path=video_path,
+                    title=video_title,
+                    description=video_description,
+                    tags=video_tags,
+                    thumbnail_path=thumbnail_path
+                )
+                
+                if folder_id:
+                    print(f"✅ Video and metadata successfully uploaded to Google Drive")
+                else:
+                    print(f"⚠️ Failed to upload to Google Drive")
+            except Exception as e:
+                print(f"❌ Error during Google Drive upload: {str(e)}")
+                print("Continuing without uploading...")
+        
         return video_path
         
     except Exception as e:
