@@ -94,19 +94,28 @@ def main(auto_mode=False):
         print(f"Generating image {i}/{len(image_prompts)}...")
         print(f"Prompt: {prompt}")
         
-        # Generate image with a unique name
-        image_name = f"motivation_{timestamp}_{i}"
-        image_files = generate_image(prompt, image_name)
-        
-        if image_files:
-            generated_images.extend(image_files)
-            print(f"✅ Image {i} generated successfully\n")
-        else:
-            print(f"❌ Failed to generate image {i}\n")
+        try:
+            # Generate image with a unique name and retry logic
+            image_name = f"motivation_{timestamp}_{i}"
+            # Use 100 retry attempts with 20 second delay between each attempt
+            image_files = generate_image(prompt, image_name, max_retries=100, retry_delay=20)
+            
+            if image_files:
+                generated_images.extend(image_files)
+                print(f"✅ Image {i} generated successfully\n")
+            else:
+                print(f"⚠️ Image {i} was not generated, but no error occurred\n")
+        except Exception as e:
+            # Catch any exceptions to prevent the whole process from failing
+            print(f"❌ Failed to generate image {i} after multiple attempts: {str(e)}\n")
+            print("Continuing with the next image...\n")
         
         # Short pause to avoid rate limiting
+        # Only pause if not the last image
         if i < len(image_prompts):
-            time.sleep(2)
+            # Adding a random jitter to the pause to avoid API rate pattern detection
+            jitter_seconds = random.uniform(1.5, 3.0)
+            time.sleep(jitter_seconds)
     
     # Final summary
     print("\n" + "=" * 80)
