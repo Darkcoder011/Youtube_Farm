@@ -1,0 +1,66 @@
+name: Continuous Video Generation
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+  
+  # Run on schedule (once a day at 2 AM UTC)
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  generate_videos:
+    name: Generate Motivational Videos
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 hours exactly
+    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Create required directories
+        run: |
+          mkdir -p output/images
+          mkdir -p output/scripts
+          mkdir -p output/audio
+          mkdir -p output/videos
+          mkdir -p credentials
+          echo "Created required directories"
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          echo "Installing additional packages for Ubuntu environment"
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y libsndfile1
+          sudo apt-get install -y imagemagick
+      
+      - name: Verify installation
+        run: |
+          echo "Checking installed packages:"
+          pip list
+          echo "Checking ffmpeg installation:"
+          ffmpeg -version
+      
+      - name: Run continuous video generator
+        run: |
+          echo "Starting continuous video generation workflow"
+          echo "This workflow will run for 3 hours (180 minutes) generating videos"
+          # Set a smaller delay (1 minute) to maximize videos generated in GitHub Actions
+          python continuous_runner.py --delay 60
+        timeout-minutes: 175  # Slightly less than the job timeout to allow for clean exit
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "Continuous video generation workflow completed"
+          echo "Videos have been generated and uploaded to Google Drive"
+          echo "Check your Google Drive, Google Sheets, and Telegram for results"
