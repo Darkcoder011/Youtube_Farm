@@ -78,8 +78,8 @@ You can run this project directly in Google Colab without any local setup. Just 
 # Create necessary directories
 !mkdir -p output/scripts output/images
 
-# Run the application
-!python main.py
+# Run the application in automatic mode
+!python main.py --auto
 
 # Display generated images (if any)
 import glob
