@@ -93,11 +93,15 @@ You can run this project directly in Google Colab without any local setup. Just 
 !git clone https://github.com/motivationai/motivation-ai-.git
 %cd motivation-ai-
 
-# Install required packages for audio and video generation without version conflicts
-# Note: We avoid specifying versions for packages already in Colab
-!pip install -q kokoro>=0.9.2 soundfile==0.12.1
-!pip install -q moviepy==1.0.3 decorator==4.4.2 imageio==2.9.0 tqdm==4.64.1 proglog==0.1.10
+# Install required packages for core functionality
+!pip install -q google-generativeai==0.5.0 requests==2.31.0 pillow==10.0.0
+
+# Install audio generation packages
+!pip install -q kokoro>=0.9.2 soundfile==0.12.1 numpy>=1.20.0
 !apt-get -qq -y install espeak-ng > /dev/null 2>&1
+
+# Install video generation packages with specific versions to avoid conflicts
+!pip install -q moviepy==1.0.3 decorator==4.4.2 imageio==2.9.0 tqdm==4.64.1 proglog==0.1.10
 
 # Verify that MoviePy is properly installed
 import importlib
