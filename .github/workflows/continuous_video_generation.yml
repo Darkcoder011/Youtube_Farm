@@ -1,8 +1,17 @@
 name: Continuous Video Generation
 
 on:
-  # Manual trigger
+  # Manual trigger with customizable parameters
   workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Duration to run in hours (0 for unlimited)'
+        required: true
+        default: '3.0'  # Set to run for 3 hours
+      wait_minutes:
+        description: 'Minutes to wait between video generations'
+        required: true
+        default: '2'  # Default wait time from continuous_runner.py
   
   # Run on schedule (once a day at 2 AM UTC)
   schedule:
@@ -37,11 +46,31 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          
+          # Install the google-genai package instead of google-generativeai
+          # This package supports the "from google import genai" import pattern
+          pip uninstall -y google-generativeai || true
+          pip install google-genai==0.1.0
+          
+          # Ensure MoviePy is properly installed with all dependencies
+          pip install moviepy==1.0.3
+          pip install decorator==4.4.2
+          pip install imageio==2.9.0
+          pip install imageio-ffmpeg==0.4.5
+          pip install tqdm==4.64.1
+          pip install numpy>=1.17.3
+          pip install proglog==0.1.10
+          
+          # Install Kokoro with specific version
+          pip install kokoro>=0.9.2
+          
+          # Install system dependencies
           echo "Installing additional packages for Ubuntu environment"
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           sudo apt-get install -y libsndfile1
           sudo apt-get install -y imagemagick
+          sudo apt-get install -y espeak-ng
       
       - name: Verify installation
         run: |
@@ -49,15 +78,329 @@ jobs:
           pip list
           echo "Checking ffmpeg installation:"
           ffmpeg -version
+          
+          # Test MoviePy installation
+          python -c "import moviepy; print('MoviePy version:', moviepy.__version__); from moviepy.editor import VideoFileClip; print('MoviePy successfully imported')"
+          
+          # Verify Google Genai package
+          python -c "from google import genai; print('Google Genai package imported successfully')"
+          
+          # Verify Kokoro
+          python -c "import kokoro; print('Kokoro version imported successfully')"
+      
+      - name: Create time-limited runner script
+        run: |
+          cat > run_with_timeout.py << 'EOL'
+          #!/usr/bin/env python
+          
+          import os
+          import sys
+          import time
+          import signal
+          import argparse
+          from datetime import datetime, timedelta
+          
+          def signal_handler(sig, frame):
+              print("\n\nScript stopped by timeout or interrupt. Exiting gracefully.")
+              sys.exit(0)
+          
+          # Register signal handlers for graceful exit
+          signal.signal(signal.SIGINT, signal_handler)
+          signal.signal(signal.SIGTERM, signal_handler)
+          
+          def main():
+              parser = argparse.ArgumentParser(description='Run video generator with time limit')
+              parser.add_argument('--duration', type=float, default=3.0, 
+                                  help='Duration to run in hours (0 for unlimited)')
+              parser.add_argument('--wait', type=int, default=2,
+                                  help='Minutes to wait between video generations')
+              args = parser.parse_args()
+              
+              # Set start time and calculate end time if duration is provided
+              start_time = time.time()
+              end_time = None
+              if args.duration > 0:
+                  end_time = start_time + (args.duration * 3600)  # Convert hours to seconds
+                  end_datetime = datetime.now() + timedelta(hours=args.duration)
+                  print(f"Will run until approximately {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+              
+              # Set up time check function
+              def time_expired():
+                  if end_time is None:
+                      return False
+                  return time.time() >= end_time
+              
+              # Import the continuous generator
+              sys.path.append('.')
+              import continuous_runner
+              
+              # Custom wrapper for continuous_runner that will exit after duration
+              def time_limited_generator(wait_time_minutes):
+                  """Wrapper that will exit when time limit is reached"""
+                  videos_created = 0
+                  max_attempts = 3
+                  total_time_seconds = 0
+                  
+                  print(f"\n{'='*50}")
+                  print(f"Starting Time-Limited Motivational Video Generator")
+                  print(f"Will generate videos with {wait_time_minutes} minutes between each")
+                  if args.duration > 0:
+                      print(f"Will exit after approximately {args.duration} hours")
+                  print(f"Press Ctrl+C to stop the process at any time")
+                  print(f"{'='*50}\n")
+                  
+                  try:
+                      while not time_expired():  # Instead of while True
+                          # Check time limit before starting a new video
+                          if time_expired():
+                              print(f"\nTime limit of {args.duration} hours reached. Exiting.")
+                              break
+                              
+                          # Get current timestamp for logging
+                          timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                          
+                          print(f"\n{'='*50}")
+                          print(f"Starting video generation #{videos_created + 1} at {timestamp}")
+                          print(f"{'='*50}\n")
+                          
+                          # Track if this run was successful
+                          success = False
+                          
+                          # Try multiple times in case of temporary errors
+                          for attempt in range(max_attempts):
+                              # Check time limit before attempting
+                              if time_expired():
+                                  print(f"\nTime limit reached during retry attempts. Exiting.")
+                                  return
+                                  
+                              try:
+                                  # Record start time
+                                  start_time_video = time.time()
+                                  
+                                  # Import the main function to run one video generation
+                                  from main import main as generate_one_video
+                                  import sys
+                                  
+                                  # Set up auto mode and a random topic
+                                  sys.argv = ['main.py', '--auto', '--topic', continuous_runner.generate_random_topic()]
+                                  
+                                  # Run the generator
+                                  result = generate_one_video()
+                                  
+                                  # Calculate time taken
+                                  end_time_video = time.time()
+                                  video_time_seconds = end_time_video - start_time_video
+                                  total_time_seconds += video_time_seconds
+                                  
+                                  if result is not None:  # Assuming main returns something non-None on success
+                                      videos_created += 1
+                                      minutes = int(video_time_seconds // 60)
+                                      seconds = int(video_time_seconds % 60)
+                                      
+                                      # Calculate average time per video
+                                      avg_time = total_time_seconds / videos_created
+                                      avg_minutes = int(avg_time // 60)
+                                      avg_seconds = int(avg_time % 60)
+                                      
+                                      print(f"\n✅ Video #{videos_created} successfully generated and uploaded!")
+                                      print(f"   Time taken: {minutes}m {seconds}s")
+                                      print(f"   Average time per video: {avg_minutes}m {avg_seconds}s")
+                                      print(f"   Total videos created: {videos_created}")
+                                      
+                                      success = True
+                                      break
+                                  else:
+                                      print(f"\n⚠️ Attempt {attempt+1}/{max_attempts}: Video generation may have failed")
+                              except Exception as e:
+                                  print(f"\n❌ Attempt {attempt+1}/{max_attempts} failed with error: {e}")
+                                  
+                              # Wait between retry attempts if we need to try again
+                              if attempt < max_attempts - 1 and not time_expired():
+                                  print(f"Waiting 30 seconds before retry...")
+                                  time.sleep(30)
+                          
+                          # If we had a successful run, wait the full time before next video
+                          if success and not time_expired():
+                              wait_seconds = wait_time_minutes * 60
+                              next_time = (datetime.now() + timedelta(minutes=wait_time_minutes)).strftime("%H:%M:%S")
+                              
+                              print(f"\n{'='*50}")
+                              print(f"Waiting {wait_time_minutes} minutes before generating next video")
+                              print(f"Next video generation will start around {next_time}")
+                              if end_time is not None:
+                                  remaining_seconds = max(0, end_time - time.time())
+                                  remaining_hours = remaining_seconds // 3600
+                                  remaining_minutes = (remaining_seconds % 3600) // 60
+                                  print(f"Time remaining: {int(remaining_hours)}h {int(remaining_minutes)}m")
+                              print(f"{'='*50}")
+                              
+                              # Wait in smaller increments to be more responsive to time limits
+                              increment = 10  # Check every 10 seconds
+                              remaining = wait_seconds
+                              while remaining > 0 and not time_expired():
+                                  sleep_time = min(increment, remaining)
+                                  time.sleep(sleep_time)
+                                  remaining -= sleep_time
+                          elif not success and not time_expired():
+                              # If all attempts failed, wait a shorter time before trying again
+                              print(f"\n⚠️ All attempts to generate video #{videos_created + 1} failed")
+                              print(f"Waiting 5 minutes before trying again")
+                              
+                              # Wait in smaller increments
+                              for _ in range(30):  # 5 minutes = 30 x 10 seconds
+                                  if time_expired():
+                                      break
+                                  time.sleep(10)
+                      
+                      print(f"\n{'='*50}")
+                      print(f"Motivational Video Generator completed!")
+                      print(f"Time limit reached: {args.duration} hours")
+                      print(f"Successfully created {videos_created} videos")
+                      print(f"{'='*50}")
+                      
+                  except KeyboardInterrupt:
+                      print("\n\nScript stopped by user. Exiting gracefully.")
+                      print(f"Videos created before exit: {videos_created}")
+              
+              # Run the time-limited generator
+              time_limited_generator(wait_time_minutes=args.wait)
+              
+          if __name__ == "__main__":
+              main()
+          EOL
+          
+          chmod +x run_with_timeout.py
       
       - name: Run continuous video generator
+        env:
+          DURATION_HOURS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.duration || '3.0' }}
+          WAIT_MINUTES: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.wait_minutes || '2' }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
-          echo "Starting continuous video generation workflow"
-          echo "This workflow will run for 3 hours (180 minutes) generating videos"
-          # Set a smaller delay (1 minute) to maximize videos generated in GitHub Actions
-          python continuous_runner.py --delay 60
-        timeout-minutes: 175  # Slightly less than the job timeout to allow for clean exit
+          echo "=== Starting Motivational Video Generator GitHub Action ==="
+          echo "- Running for ${DURATION_HOURS} hours (0 = unlimited)"
+          echo "- Waiting ${WAIT_MINUTES} minutes between videos"
+          echo "- Event type: ${GITHUB_EVENT_NAME}"
+          
+          # Check Python and package versions
+          python -c "import sys; print('Python version:', sys.version)"
+          python -c "import google.genai as genai; print('Google Genai version:')"
+          
+          # Run the generator with time limit
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            echo "This is a scheduled run. Using default 3-hour runtime."
+            python run_with_timeout.py --duration 3.0 --wait 2
+          else
+            echo "This is a manual run. Using provided parameters."
+            python run_with_timeout.py --duration $DURATION_HOURS --wait $WAIT_MINUTES
+          fi
       
+      - name: Cleanup all generated files
+        if: always()  # Run even if previous steps failed
+        run: |
+          echo "=== Cleaning up all generated files ==="
+          
+          # Create comprehensive cleanup script
+          cat > cleanup.py << 'EOL'
+          #!/usr/bin/env python
+          
+          import os
+          import glob
+          import shutil
+          
+          def cleanup_all_files():
+              """Clean up all files generated during the motivational video process"""
+              print("Starting comprehensive cleanup...")
+              
+              # Define patterns for all generated files
+              patterns_to_clean = [
+                  "motivation_*.mp4",         # Generated video files
+                  "motivation_*.png",         # Generated image files
+                  "motivation_*.wav",         # Generated audio files
+                  "temp-*.wav",               # Temporary audio files
+                  "temp-*.mp3",               # Temporary audio files
+                  "*.webm",                   # Any webm files
+                  "run_with_timeout.py",      # Our temporary script
+                  "cleanup.py"                # This cleanup script itself
+              ]
+              
+              # Files that should NEVER be deleted (protected files)
+              protected_files = [
+                  "requirements.txt",
+                  "main.py",
+                  "continuous_runner.py",
+                  "README.md"
+              ]
+              
+              # Count of deleted files
+              deleted_count = 0
+              
+              # Use glob to find all files matching the patterns
+              for pattern in patterns_to_clean:
+                  matching_files = glob.glob(pattern)
+                  for file_path in matching_files:
+                      # Skip protected files
+                      if os.path.basename(file_path) in protected_files:
+                          print(f"⚠️ Protected file, skipping: {file_path}")
+                          continue
+                          
+                      try:
+                          if os.path.exists(file_path) and os.path.isfile(file_path):
+                              os.remove(file_path)
+                              print(f"✓ Removed: {file_path}")
+                              deleted_count += 1
+                      except Exception as e:
+                          print(f"Error removing {file_path}: {e}")
+              
+              # Clean directories that might contain generated content
+              directories_to_clean = [
+                  "output",
+                  "temp",
+                  "images",
+                  "audio",
+                  "video",
+                  "logs"
+              ]
+              
+              for directory in directories_to_clean:
+                  if os.path.exists(directory) and os.path.isdir(directory):
+                      try:
+                          # First try to remove all files in the directory
+                          for file in os.listdir(directory):
+                              file_path = os.path.join(directory, file)
+                              try:
+                                  if os.path.isfile(file_path):
+                                      os.remove(file_path)
+                                      deleted_count += 1
+                                  elif os.path.isdir(file_path):
+                                      shutil.rmtree(file_path)
+                              except Exception as e:
+                                  print(f"Error removing {file_path}: {e}")
+                          
+                          # Then try to remove the now-empty directory
+                          if not os.listdir(directory):  # Check if directory is empty
+                              os.rmdir(directory)
+                              print(f"✓ Removed empty directory: {directory}")
+                          else:
+                              print(f"Directory not empty, cannot remove: {directory}")
+                      except Exception as e:
+                          print(f"Error cleaning directory {directory}: {e}")
+              
+              print(f"\n✅ Cleanup complete! Removed {deleted_count} files and cleaned directories")
+              return deleted_count
+          
+          if __name__ == "__main__":
+              cleanup_all_files()
+          EOL
+          
+          # Make the script executable
+          chmod +x cleanup.py
+          
+          # Run the cleanup script
+          python cleanup.py
+          
+          echo "=== Cleanup complete ==="
+          
       - name: Summary
         if: always()
         run: |
