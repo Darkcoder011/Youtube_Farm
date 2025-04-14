@@ -87,11 +87,13 @@ You can run this project directly in Google Colab without any local setup. Just 
 !git clone https://github.com/motivationai/motivation-ai-.git
 %cd motivation-ai-
 
-# Install required packages
-!pip install -q google-generativeai requests pillow
+# Install ALL required packages including Kokoro TTS and audio processing libraries
+!pip install -q google-generativeai==0.5.0 requests==2.31.0 pillow==10.0.0
+!pip install -q kokoro>=0.9.2 soundfile==0.12.1 numpy>=1.20.0
+!apt-get -qq -y install espeak-ng > /dev/null 2>&1
 
 # Create necessary directories
-!mkdir -p output/scripts output/images
+!mkdir -p output/scripts output/images output/audio
 
 # Run the application in automatic mode with audio generation
 !python main.py --auto --voice af_bella
