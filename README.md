@@ -95,8 +95,16 @@ You can run this project directly in Google Colab without any local setup. Just 
 
 # Install required packages for audio and video generation without version conflicts
 # Note: We avoid specifying versions for packages already in Colab
-!pip install -q kokoro>=0.9.2 soundfile==0.12.1 moviepy==1.0.3
+!pip install -q kokoro>=0.9.2 soundfile==0.12.1
+!pip install -q moviepy==1.0.3 decorator==4.4.2 imageio==2.9.0 tqdm==4.64.1 proglog==0.1.10
 !apt-get -qq -y install espeak-ng > /dev/null 2>&1
+
+# Verify that MoviePy is properly installed
+import importlib
+if importlib.util.find_spec("moviepy") is None:
+    raise ImportError("MoviePy installation failed. Please try running this cell again.")
+else:
+    print("✅ MoviePy successfully installed")
 
 # Create necessary directories
 !mkdir -p output/scripts output/images output/audio
