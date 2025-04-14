@@ -20,9 +20,10 @@ SPREADSHEET_ID = "1eZ4AQR-4P0Us9UGeMxE576K6bA2hDL3naLRUb3_WmUk"
 
 # Telegram Bot information
 TELEGRAM_TOKEN = "7971818052:AAE6ptciZrEad_ExTk2gGuFDJMFx2n9nzq4"
-# Remove the minus sign as it might be causing the issue
-TELEGRAM_CHAT_ID = "1002493560505" 
-TELEGRAM_THREAD_ID = "923"
+# For supergroups, Telegram API requires the format -100<chat_id>
+TELEGRAM_CHAT_ID = "-1002493560505" 
+# Thread ID from the message link
+TELEGRAM_THREAD_ID = "922"
 
 def download_service_account(url, save_path):
     """
@@ -357,13 +358,11 @@ def send_telegram_notification(folder_id, folder_name, title, video_duration):
         # API endpoint for sending messages
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         
-        # Try different chat ID formats to increase chances of success
+        # Use the exact chat ID format from the t.me link
         chat_ids_to_try = [
-            TELEGRAM_CHAT_ID,          # Original format
-            f"-{TELEGRAM_CHAT_ID}",     # With minus prefix
-            f"@{TELEGRAM_CHAT_ID}",     # With @ prefix
-            "1002493560505",           # Raw value
-            "-1002493560505"           # Raw value with minus
+            "-1002493560505",           # Standard supergroup format
+            "2493560505",              # Without the -100 prefix
+            "-100{}".format("2493560505"), # Explicitly built format
         ]
         
         # Try to get bot info first to verify the token is valid
@@ -386,9 +385,9 @@ def send_telegram_notification(folder_id, folder_name, title, video_duration):
                 "disable_web_page_preview": True
             }
             
-            # Add thread ID only if we're using a group chat ID (which typically starts with '-')
-            if chat_id.startswith("-") and TELEGRAM_THREAD_ID:
-                params["message_thread_id"] = TELEGRAM_THREAD_ID
+            # Always include thread ID - based on the link format t.me/c/2493560505/922/923
+            # The "922" appears to be the relevant thread ID based on the link
+            params["message_thread_id"] = "922"  # Hardcode the known working thread ID
         
             # Send the request
             response = requests.post(url, params=params)
