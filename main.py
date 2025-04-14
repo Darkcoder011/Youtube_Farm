@@ -6,13 +6,15 @@ import os
 import time
 import random
 import sys
+import argparse
 
 # Import from our new folder structure
 from src.generators.script_generator import generate_motivation_script
 from src.generators.image_generator import generate_image
+from src.generators.audio_generator import generate_audio, VOICE_OPTIONS
 from src.utils.topic_data import get_all_topics, get_random_topics
 
-def main(auto_mode=False):
+def main(auto_mode=False, voice=None, skip_audio=False):
     """
     Main application function that:
     1. Allows selection of a self-improvement topic or randomly chooses one
@@ -117,18 +119,56 @@ def main(auto_mode=False):
             jitter_seconds = random.uniform(1.5, 3.0)
             time.sleep(jitter_seconds)
     
+    # Generate audio from the script if audio generation is enabled
+    audio_result = None
+    if not skip_audio:
+        print("\nNow generating audio narration of the script...\n")
+        try:
+            audio_name = f"motivation_{timestamp}"
+            audio_result = generate_audio(script, audio_name, voice)
+            
+            if audio_result:
+                print(f"✅ Audio generated successfully\n")
+            else:
+                print(f"⚠️ Failed to generate audio\n")
+        except Exception as e:
+            print(f"❌ Error during audio generation: {str(e)}\n")
+    else:
+        print("\nAudio generation skipped as requested\n")
+    
     # Final summary
     print("\n" + "=" * 80)
     print("🎉 GENERATION COMPLETE 🎉")
     print("=" * 80)
     print(f"📝 Motivational script saved to: {script_file}")
     print(f"🖼️ Generated {len(generated_images)} images in the output/images directory")
+    if audio_result:
+        print(f"🎙️ Audio narration saved to: {audio_result['audio_path']}")
     print("\nThank you for using the Viral Self-Improvement Content Generator!")
 
+def display_available_voices():
+    """Display all available voices for TTS"""
+    print("\nAvailable voices for text-to-speech:\n")
+    for category, voices in VOICE_OPTIONS.items():
+        print(f"{category}:")
+        for voice in voices:
+            print(f"  - {voice}")
+    print()
+
 if __name__ == "__main__":
-    # Check if auto mode flag is provided
-    auto_mode = False
-    if len(sys.argv) > 1 and sys.argv[1].lower() in ['-a', '--auto']:
-        auto_mode = True
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description="Viral Self-Improvement Content Generator")
+    parser.add_argument("-a", "--auto", action="store_true", help="Run in automatic mode without user interaction")
+    parser.add_argument("--voice", type=str, help="Specify voice for TTS (use --list-voices to see options)")
+    parser.add_argument("--list-voices", action="store_true", help="Display available voices and exit")
+    parser.add_argument("--skip-audio", action="store_true", help="Skip audio generation")
     
-    main(auto_mode)
+    args = parser.parse_args()
+    
+    # If user requested to list voices, show them and exit
+    if args.list_voices:
+        display_available_voices()
+        sys.exit(0)
+    
+    # Run the main application
+    main(auto_mode=args.auto, voice=args.voice, skip_audio=args.skip_audio)
