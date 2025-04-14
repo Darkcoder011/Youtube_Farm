@@ -72,29 +72,72 @@ jobs:
           ls -la src/utils/
           ls -la src/generators/
       
-      - name: Run diagnostic test
+      - name: Run continuous video generation
         run: |
-          # Create a simple Python script to test the imports
-          echo "import sys, os, traceback" > test_imports.py
-          echo "print('Python version:', sys.version)" >> test_imports.py
-          echo "print('Current directory:', os.getcwd())" >> test_imports.py
-          echo "try:" >> test_imports.py
-          echo "    import main" >> test_imports.py
-          echo "    print('Successfully imported main module')" >> test_imports.py
-          echo "    from src.utils.topic_data import get_random_topics" >> test_imports.py
-          echo "    topics = get_random_topics(1)" >> test_imports.py
-          echo "    print('Topics:', topics)" >> test_imports.py
-          echo "    print('Running main function...')" >> test_imports.py
-          echo "    result = main.main(auto_mode=True)" >> test_imports.py
-          echo "    print('Main function completed')" >> test_imports.py
-          echo "except Exception as e:" >> test_imports.py
-          echo "    print('ERROR:', str(e))" >> test_imports.py
-          echo "    traceback.print_exc()" >> test_imports.py
-          echo "    print('Directory contents:', os.listdir('.'))" >> test_imports.py
-          echo "    sys.exit(1)" >> test_imports.py
+          # Get the workflow parameters
+          DURATION_HOURS=${{ github.event.inputs.duration || '3.0' }}
+          WAIT_MINUTES=${{ github.event.inputs.wait_minutes || '2' }}
           
-          # Run the test script
-          python test_imports.py
+          # Convert wait minutes to seconds for the continuous runner
+          WAIT_SECONDS=$((WAIT_MINUTES * 60))
+          
+          # Create a wrapper script to run the continuous generator
+          echo "import sys, os, time, subprocess, signal" > run_continuous.py
+          echo "print('Python version:', sys.version)" >> run_continuous.py
+          echo "print('Current directory:', os.getcwd())" >> run_continuous.py
+          echo "print('Starting continuous video generation')" >> run_continuous.py
+          echo "" >> run_continuous.py
+          echo "# Set the duration based on workflow input" >> run_continuous.py
+          echo "duration_hours = float('$DURATION_HOURS')" >> run_continuous.py
+          echo "wait_seconds = $WAIT_SECONDS" >> run_continuous.py
+          echo "" >> run_continuous.py
+          echo "# Set the environment variable for delay between videos" >> run_continuous.py
+          echo "os.environ['VIDEO_GEN_DELAY_SECONDS'] = str(wait_seconds)" >> run_continuous.py
+          echo "" >> run_continuous.py
+          echo "# Calculate end time if duration is not 0 (unlimited)" >> run_continuous.py
+          echo "end_time = None" >> run_continuous.py
+          echo "if duration_hours > 0:" >> run_continuous.py
+          echo "    end_time = time.time() + (duration_hours * 3600)" >> run_continuous.py
+          echo "    print(f'Will run for {duration_hours} hours')" >> run_continuous.py
+          echo "else:" >> run_continuous.py
+          echo "    print('Will run without time limit')" >> run_continuous.py
+          echo "" >> run_continuous.py
+          echo "# Set up the process" >> run_continuous.py
+          echo "cmd = ['python', 'continuous_runner.py']" >> run_continuous.py
+          echo "process = subprocess.Popen(cmd)" >> run_continuous.py
+          echo "" >> run_continuous.py
+          echo "try:" >> run_continuous.py
+          echo "    # Wait until the process completes or time expires" >> run_continuous.py
+          echo "    while process.poll() is None:" >> run_continuous.py
+          echo "        time.sleep(5)  # Check every 5 seconds" >> run_continuous.py
+          echo "        if end_time and time.time() > end_time:" >> run_continuous.py
+          echo "            print('Time limit reached, sending terminate signal')" >> run_continuous.py
+          echo "            # Send interrupt signal to let continuous_runner complete current video" >> run_continuous.py
+          echo "            process.send_signal(signal.SIGINT)" >> run_continuous.py
+          echo "            # Give it some time to finish gracefully" >> run_continuous.py
+          echo "            for _ in range(12):  # 1 minute max wait" >> run_continuous.py
+          echo "                if process.poll() is not None:" >> run_continuous.py
+          echo "                    break" >> run_continuous.py
+          echo "                time.sleep(5)" >> run_continuous.py
+          echo "            # Force kill if still running" >> run_continuous.py
+          echo "            if process.poll() is None:" >> run_continuous.py
+          echo "                print('Process still running, terminating forcefully')" >> run_continuous.py
+          echo "                process.terminate()" >> run_continuous.py
+          echo "            break" >> run_continuous.py
+          echo "    print('Continuous runner has finished')" >> run_continuous.py
+          echo "except KeyboardInterrupt:" >> run_continuous.py
+          echo "    print('Received keyboard interrupt, terminating process')" >> run_continuous.py
+          echo "    process.send_signal(signal.SIGINT)" >> run_continuous.py
+          echo "    # Give it some time to finish gracefully" >> run_continuous.py
+          echo "    time.sleep(30)" >> run_continuous.py
+          echo "finally:" >> run_continuous.py
+          echo "    # Ensure process is terminated" >> run_continuous.py
+          echo "    if process.poll() is None:" >> run_continuous.py
+          echo "        process.terminate()" >> run_continuous.py
+          echo "        print('Process terminated')" >> run_continuous.py
+          
+          # Run the wrapper script
+          python run_continuous.py
       
       - name: Summary
         if: always()
