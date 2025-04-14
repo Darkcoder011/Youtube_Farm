@@ -1,6 +1,6 @@
 # Viral Self-Improvement Content Generator
 
-This project uses Google's Gemini API to generate viral-worthy motivational self-improvement scripts with accompanying inspirational images and audio narration using Kokoro TTS.
+This project uses Google's Gemini API to generate viral-worthy motivational self-improvement scripts with accompanying inspirational images, audio narration using Kokoro TTS, and complete videos combining all elements.
 
 ## Project Structure
 
@@ -11,7 +11,8 @@ This project uses Google's Gemini API to generate viral-worthy motivational self
 │   ├── generators/         # Content generation modules
 │   │   ├── script_generator.py   # Creates viral self-improvement scripts
 │   │   ├── image_generator.py    # Generates images from prompts
-│   │   └── audio_generator.py    # Converts scripts to speech using Kokoro TTS
+│   │   ├── audio_generator.py    # Converts scripts to speech using Kokoro TTS
+│   │   └── video_generator.py    # Combines images and audio into videos
 │   └── utils/              # Utility modules
 │       ├── config.py       # Configuration utilities
 │       ├── topic_data.py   # Database of 200+ self-improvement topics
@@ -20,7 +21,8 @@ This project uses Google's Gemini API to generate viral-worthy motivational self
 └── output/                 # Output storage directories
     ├── scripts/            # Generated motivational scripts
     ├── images/             # Generated images (YouTube 16:9 format)
-    └── audio/              # Generated audio narrations
+    ├── audio/              # Generated audio narrations
+    └── videos/             # Complete videos with images and audio
 ```
 
 ## Setup
@@ -41,6 +43,7 @@ This project uses Google's Gemini API to generate viral-worthy motivational self
    python main.py --list-voices      # Display available TTS voices
    python main.py --voice af_bella   # Specify a TTS voice
    python main.py --skip-audio       # Skip audio generation
+   python main.py --skip-video       # Skip video generation
    ```
 
    Note: API keys are already configured in `src/utils/config.py`
@@ -59,13 +62,15 @@ This project follows standard Python package structure for better organization:
 2. The script generator creates viral, highly shareable motivational content with image prompts using Gemini's text generation capabilities
 3. The image generator takes those prompts and creates visual representations in YouTube 16:9 format using Gemini's image generation model
 4. The audio generator converts the script into natural-sounding speech using Kokoro TTS
-5. All outputs are saved with timestamps for easy tracking
+5. The video generator combines the images and audio into a complete video with transitions and text overlays
+6. All outputs are saved with timestamps for easy tracking
 
 ## Output
 
 - Motivational scripts are saved as markdown files in the `output/scripts` directory
 - YouTube-optimized images (16:9 aspect ratio) are saved in the `output/images` directory
 - Audio narrations are saved as WAV files in the `output/audio` directory
+- Complete videos are saved as MP4 files in the `output/videos` directory
 - All outputs use matching timestamps for easy correlation
 
 ## Models Used
@@ -73,6 +78,7 @@ This project follows standard Python package structure for better organization:
 - Text Generation: `gemini-2.0-flash-thinking-exp-01-21` (Google Gemini)
 - Image Generation: `gemini-2.0-flash-exp-image-generation` (Google Gemini)
 - Audio Generation: `Kokoro-82M` (Kokoro TTS)
+- Video Creation: `MoviePy` (Python video editing library)
 
 ## Note
 
@@ -87,9 +93,9 @@ You can run this project directly in Google Colab without any local setup. Just 
 !git clone https://github.com/motivationai/motivation-ai-.git
 %cd motivation-ai-
 
-# Install ALL required packages including Kokoro TTS and audio processing libraries
-!pip install -q google-generativeai==0.5.0 requests==2.31.0 pillow==10.0.0
-!pip install -q kokoro>=0.9.2 soundfile==0.12.1 numpy>=1.20.0
+# Install required packages for audio and video generation without version conflicts
+# Note: We avoid specifying versions for packages already in Colab
+!pip install -q kokoro>=0.9.2 soundfile==0.12.1 moviepy==1.0.3
 !apt-get -qq -y install espeak-ng > /dev/null 2>&1
 
 # Create necessary directories
@@ -115,6 +121,21 @@ for img_file in image_files:
     if not img_file.endswith('.gitkeep'):
         display(Image(img_file))
         print(f"Image: {img_file}")
+
+# Display info about generated video
+video_files = sorted(glob.glob('output/videos/*.*'))
+if video_files:
+    print("\nGenerated video:")
+    for video_file in video_files:
+        print(f"Video: {video_file}")
+    # For Colab, you could use HTML to display the video
+    from IPython.display import HTML
+    if video_files:
+        display(HTML(f"""
+        <video width="640" height="360" controls>
+          <source src="{video_files[-1]}" type="video/mp4">
+        </video>
+        """))
 ```
 
 This code will:

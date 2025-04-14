@@ -14,6 +14,19 @@ from src.generators.script_generator import generate_motivation_script
 from src.generators.image_generator import generate_image
 from src.utils.topic_data import get_all_topics, get_random_topics
 
+# Check if moviepy is available and import video generator if it is
+MOVIEPY_AVAILABLE = importlib.util.find_spec("moviepy") is not None
+
+if MOVIEPY_AVAILABLE:
+    try:
+        from src.generators.video_generator import create_video, find_generated_files
+        print("Video generation capabilities loaded successfully")
+    except ImportError as e:
+        print(f"Warning: Video generator module could not be loaded: {e}")
+        MOVIEPY_AVAILABLE = False
+else:
+    print("Note: Video generation is disabled (moviepy library not installed)")
+
 # Check if Kokoro is available and import audio generator if it is
 KOKORO_AVAILABLE = importlib.util.find_spec("kokoro") is not None
 SOUNDFILE_AVAILABLE = importlib.util.find_spec("soundfile") is not None
@@ -30,7 +43,7 @@ else:
     # Define empty VOICE_OPTIONS for compatibility
     VOICE_OPTIONS = {"Not Available": ["none"]}
 
-def main(auto_mode=False, voice=None, skip_audio=False):
+def main(auto_mode=False, voice=None, skip_audio=False, skip_video=False):
     """
     Main application function that:
     1. Allows selection of a self-improvement topic or randomly chooses one
@@ -157,6 +170,40 @@ def main(auto_mode=False, voice=None, skip_audio=False):
     else:
         print("\nAudio generation skipped as requested\n")
     
+    # Generate video from images and audio if enabled
+    video_result = None
+    if not skip_video and MOVIEPY_AVAILABLE and audio_result and generated_images:
+        print("\nNow generating video from images and audio...\n")
+        try:
+            # Use the same timestamp for the video
+            video_name = f"motivation_{timestamp}"
+            # Get the base directory for finding files
+            from src.utils.config import get_output_paths
+            scripts_dir, _ = get_output_paths()
+            base_dir = os.path.dirname(scripts_dir)
+            
+            # Get paths to audio and image files
+            audio_file = audio_result['audio_path']
+            image_files = generated_images
+            
+            # Generate video
+            video_result = create_video(audio_file, image_files, video_name)
+            
+            if video_result:
+                print(f"✅ Video generated successfully\n")
+            else:
+                print(f"⚠️ Failed to generate video\n")
+        except Exception as e:
+            print(f"❌ Error during video generation: {str(e)}\n")
+    elif not skip_video and not MOVIEPY_AVAILABLE:
+        print("\nVideo generation skipped - required library not installed\n")
+        print("To enable video generation, install required package:")
+        print("  pip install moviepy==1.0.3")
+    elif not skip_video and (not audio_result or not generated_images):
+        print("\nVideo generation skipped - missing audio or images\n")
+    else:
+        print("\nVideo generation skipped as requested\n")
+    
     # Final summary
     print("\n" + "=" * 80)
     print("🎉 GENERATION COMPLETE 🎉")
@@ -165,6 +212,8 @@ def main(auto_mode=False, voice=None, skip_audio=False):
     print(f"🖼️ Generated {len(generated_images)} images in the output/images directory")
     if audio_result:
         print(f"🎙️ Audio narration saved to: {audio_result['audio_path']}")
+    if video_result:
+        print(f"🎬 Complete video saved to: {video_result}")
     print("\nThank you for using the Viral Self-Improvement Content Generator!")
 
 def display_available_voices():
@@ -188,6 +237,7 @@ if __name__ == "__main__":
     parser.add_argument("--voice", type=str, help="Specify voice for TTS (use --list-voices to see options)")
     parser.add_argument("--list-voices", action="store_true", help="Display available voices and exit")
     parser.add_argument("--skip-audio", action="store_true", help="Skip audio generation")
+    parser.add_argument("--skip-video", action="store_true", help="Skip video generation")
     
     args = parser.parse_args()
     
@@ -197,4 +247,4 @@ if __name__ == "__main__":
         sys.exit(0)
     
     # Run the main application
-    main(auto_mode=args.auto, voice=args.voice, skip_audio=args.skip_audio)
+    main(auto_mode=args.auto, voice=args.voice, skip_audio=args.skip_audio, skip_video=args.skip_video)
