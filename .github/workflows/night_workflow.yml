@@ -1,0 +1,144 @@
+name: Nightly Video Generation Workflow
+
+on:
+  # Manual trigger with customizable parameters
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Duration to run in hours (0 for unlimited)'
+        required: true
+        default: '3.0'
+      wait_minutes:
+        description: 'Minutes to wait between video generations'
+        required: true
+        default: '2'
+  
+  # Run on schedule (every day at 11 PM UTC)
+  schedule:
+    - cron: '0 23 * * *'
+
+jobs:
+  generate_videos:
+    name: Generate Motivational Videos
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 hours exactly
+    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Create required directories
+        run: |
+          mkdir -p output/images
+          mkdir -p output/scripts
+          mkdir -p output/audio
+          mkdir -p output/videos
+          mkdir -p credentials
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          # Google API packages
+          pip uninstall -y google-generativeai || true
+          pip install google-genai==0.1.0
+          
+          # Video generation packages
+          pip install moviepy==1.0.3 decorator==4.4.2 imageio==2.9.0 imageio-ffmpeg==0.4.5
+          pip install tqdm==4.64.1 numpy>=1.17.3 proglog==0.1.10
+          
+          # Audio generation
+          pip install kokoro>=0.9.2
+          
+          # System dependencies
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libsndfile1 imagemagick espeak-ng
+      
+      - name: Display system and environment info
+        run: |
+          python --version
+          pip list
+          echo "Current directory:"
+          ls -la
+          echo "Source directory structure:"
+          ls -la src/
+          ls -la src/utils/
+          ls -la src/generators/
+      
+      - name: Run continuous video generation with main.py
+        run: |
+          # Get the workflow parameters
+          DURATION_HOURS=${{ github.event.inputs.duration || '3.0' }}
+          WAIT_MINUTES=${{ github.event.inputs.wait_minutes || '2' }}
+          
+          # Convert wait minutes to seconds
+          WAIT_SECONDS=$((WAIT_MINUTES * 60))
+          
+          # Create a wrapper script to run main.py in a loop
+          echo "import sys, os, time, datetime, subprocess" > run_main_loop.py
+          echo "print('Python version:', sys.version)" >> run_main_loop.py
+          echo "print('Current directory:', os.getcwd())" >> run_main_loop.py
+          echo "print('Starting continuous video generation using main.py')" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "# Set the duration based on workflow input" >> run_main_loop.py
+          echo "duration_hours = float('$DURATION_HOURS')" >> run_main_loop.py
+          echo "wait_seconds = $WAIT_SECONDS" >> run_main_loop.py
+          echo "print(f\"Will run for {duration_hours} hours with {wait_seconds} seconds between videos\")" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "# Calculate end time if duration is not 0 (unlimited)" >> run_main_loop.py
+          echo "end_time = None" >> run_main_loop.py
+          echo "if duration_hours > 0:" >> run_main_loop.py
+          echo "    end_time = time.time() + (duration_hours * 3600)" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "start_time = datetime.datetime.now()" >> run_main_loop.py
+          echo "video_count = 0" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "try:" >> run_main_loop.py
+          echo "    # Run in a loop until time limit is reached" >> run_main_loop.py
+          echo "    while True:" >> run_main_loop.py
+          echo "        video_count += 1" >> run_main_loop.py
+          echo "        gen_start = datetime.datetime.now()" >> run_main_loop.py
+          echo "        print(f\"\n{'='*80}\nStarting video generation #{video_count} at {gen_start.strftime('%Y-%m-%d %H:%M:%S')}\n{'='*80}\")" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "        # Run main.py with auto mode enabled" >> run_main_loop.py
+          echo "        cmd = ['python', 'main.py', '--auto']" >> run_main_loop.py
+          echo "        result = subprocess.run(cmd)" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "        # Calculate and display duration" >> run_main_loop.py
+          echo "        gen_end = datetime.datetime.now()" >> run_main_loop.py
+          echo "        duration = (gen_end - gen_start).total_seconds()" >> run_main_loop.py
+          echo "        print(f\"\nVideo #{video_count} completed in {duration:.1f} seconds\")" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "        # Check if we should stop" >> run_main_loop.py
+          echo "        if end_time and time.time() >= end_time:" >> run_main_loop.py
+          echo "            print('Time limit reached, stopping video generation')" >> run_main_loop.py
+          echo "            break" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "        # Wait before starting next video" >> run_main_loop.py
+          echo "        print(f\"Waiting {wait_seconds} seconds before starting next video...\")" >> run_main_loop.py
+          echo "        time.sleep(wait_seconds)" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "except KeyboardInterrupt:" >> run_main_loop.py
+          echo "    print('\nReceived keyboard interrupt, stopping video generation')" >> run_main_loop.py
+          echo "except Exception as e:" >> run_main_loop.py
+          echo "    print(f\"\nError in video generation loop: {str(e)}\")" >> run_main_loop.py
+          echo "finally:" >> run_main_loop.py
+          echo "    # Calculate and display total runtime" >> run_main_loop.py
+          echo "    end_time = datetime.datetime.now()" >> run_main_loop.py
+          echo "    total_runtime = (end_time - start_time).total_seconds() / 3600  # in hours" >> run_main_loop.py
+          echo "    print(f\"\n{'='*80}\nVideo generation complete!\nTotal videos created: {video_count}\nTotal runtime: {total_runtime:.2f} hours\n{'='*80}\")" >> run_main_loop.py
+          
+          # Run the wrapper script
+          python run_main_loop.py
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "Workflow completed. Check logs for details."
