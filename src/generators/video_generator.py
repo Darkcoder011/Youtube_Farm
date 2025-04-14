@@ -4,28 +4,39 @@ Maximum compatibility version for Google Colab.
 """
 import os
 import glob
+import random
 from datetime import datetime
 
 # Minimal imports for maximum compatibility
 from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 
+# Import only the most reliable effects
+try:
+    # These are the most basic effects that should work across versions
+    from moviepy.video.fx.all import blackwhite, colorx
+    EFFECTS_AVAILABLE = True
+except ImportError:
+    print("Basic effects not available, videos will be generated without filters")
+    EFFECTS_AVAILABLE = False
+
 from src.utils.config import get_output_paths
 
 
 def create_video(audio_file, image_files, output_name=None, duration_per_image=5.0, 
-                 fade_duration=0.5, add_transitions=False, add_text_overlay=False):
+                 fade_duration=0.5, add_transitions=False, add_text_overlay=False, add_basic_filters=True):
     """
     Creates a basic video from a list of images and an audio file.
-    Simplified version for maximum Colab compatibility.
+    Simplified version for maximum Colab compatibility with optional basic filters.
     
     Args:
         audio_file (str): Path to the audio file
         image_files (list): List of paths to image files
         output_name (str, optional): Name for the output video file (without extension)
         duration_per_image (float, optional): Duration in seconds for each image
-        fade_duration (float, optional): Not used in simplified version
-        add_transitions (bool, optional): Not used in simplified version
+        fade_duration (float, optional): Duration of fade transitions if enabled
+        add_transitions (bool, optional): Whether to add basic fade transitions
         add_text_overlay (bool, optional): Not used in simplified version
+        add_basic_filters (bool, optional): Whether to add very basic video filters
         
     Returns:
         str: Path to the created video file
@@ -95,7 +106,29 @@ def create_video(audio_file, image_files, output_name=None, duration_per_image=5
         print("Concatenating video clips...")
         final_clip = concatenate_videoclips(video_clips)
         
-        # Simplified version with no custom effects for better compatibility
+        # Apply very basic filters that work across most versions if requested and available
+        if add_basic_filters and EFFECTS_AVAILABLE and len(video_clips) > 0:
+            try:
+                # Choose a random basic filter to apply
+                print("Applying a simple filter to enhance video quality...")
+                filter_choice = random.choice(["none", "light_contrast", "black_and_white", "warm_tint"])
+                
+                if filter_choice == "black_and_white":
+                    final_clip = final_clip.fx(blackwhite)
+                    print("Applied black and white filter")
+                elif filter_choice == "warm_tint":
+                    # Very slight color enhancement (1.2 = 20% color boost)
+                    final_clip = final_clip.fx(colorx, 1.2)
+                    print("Applied warm color tint")
+                elif filter_choice == "light_contrast":
+                    # Apply both for a more vibrant look
+                    final_clip = final_clip.fx(colorx, 1.1)
+                    print("Applied light contrast enhancement")
+                else:
+                    print("No filter applied - using original colors")
+            except Exception as e:
+                print(f"⚠️ Could not apply filter: {e}")
+                print("Continuing with unfiltered video...")
         
         # Add audio
         print("Adding audio to video...")
