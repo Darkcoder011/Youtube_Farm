@@ -88,8 +88,13 @@ def generate_audio(script_text, audio_name="motivation_audio", voice_type=None, 
                 print("Processing script segments:")
                 for i, (gs, ps, audio) in enumerate(generator):
                     total_segments += 1
-                    total_duration += ps
-                    print(f"  Segment {i+1}: {gs} phonemes, {ps:.2f} seconds")
+                    # Ensure ps is a float before adding to total_duration
+                    try:
+                        segment_duration = float(ps)
+                        total_duration += segment_duration
+                        print(f"  Segment {i+1}: {gs} phonemes, {segment_duration:.2f} seconds")
+                    except (ValueError, TypeError):
+                        print(f"  Segment {i+1}: {gs} phonemes, duration unknown (non-numeric value)")
                     all_audio.append(audio)
                 
                 # Combine ALL audio chunks into ONE single file
