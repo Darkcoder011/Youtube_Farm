@@ -8,15 +8,57 @@ import random
 import sys
 import argparse
 import importlib.util
+import subprocess
+
+# First, perform a comprehensive check for MoviePy to ensure it's properly installed
+def verify_moviepy_installation():
+    """
+    Verify that MoviePy is properly installed and functioning.
+    Returns bool indicating whether MoviePy is available and working.
+    """
+    print("Checking MoviePy installation...")
+    
+    try:
+        # First, attempt to import MoviePy
+        import moviepy.editor
+        # Try to access critical functionality to ensure it's working
+        temp_clip = moviepy.editor.ColorClip((640, 480), color=(0,0,0), duration=1)
+        
+        # If we got here, MoviePy is working
+        print("✅ MoviePy is properly installed and functioning")
+        return True
+    except ImportError:
+        print("⚠️ MoviePy is not installed. Attempting to install...")
+        try:
+            # Attempt to install MoviePy and its dependencies
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", 
+                                  "moviepy==1.0.3", "decorator==4.4.2", 
+                                  "imageio==2.9.0", "tqdm==4.64.1", "proglog==0.1.10"])
+            
+            # Try importing after installation
+            import moviepy.editor
+            temp_clip = moviepy.editor.ColorClip((640, 480), color=(0,0,0), duration=1)
+            
+            print("✅ MoviePy was successfully installed")
+            return True
+        except Exception as e:
+            print(f"❌ Failed to install MoviePy: {e}")
+            print("Video generation will be disabled.")
+            return False
+    except Exception as e:
+        print(f"⚠️ MoviePy is installed but not functioning correctly: {e}")
+        print("Video generation will be disabled.")
+        return False
+
+# Check MoviePy at the very beginning
+MOVIEPY_AVAILABLE = verify_moviepy_installation()
 
 # Import from our new folder structure
 from src.generators.script_generator import generate_motivation_script
 from src.generators.image_generator import generate_image
 from src.utils.topic_data import get_all_topics, get_random_topics
 
-# Check if moviepy is available and import video generator if it is
-MOVIEPY_AVAILABLE = importlib.util.find_spec("moviepy") is not None
-
+# Import video generator if MoviePy is available
 if MOVIEPY_AVAILABLE:
     try:
         from src.generators.video_generator import create_video, find_generated_files
@@ -24,8 +66,6 @@ if MOVIEPY_AVAILABLE:
     except ImportError as e:
         print(f"Warning: Video generator module could not be loaded: {e}")
         MOVIEPY_AVAILABLE = False
-else:
-    print("Note: Video generation is disabled (moviepy library not installed)")
 
 # Check if Kokoro is available and import audio generator if it is
 KOKORO_AVAILABLE = importlib.util.find_spec("kokoro") is not None
@@ -172,33 +212,37 @@ def main(auto_mode=False, voice=None, skip_audio=False, skip_video=False):
     
     # Generate video from images and audio if enabled
     video_result = None
-    if not skip_video and MOVIEPY_AVAILABLE and audio_result and generated_images:
+    if not skip_video and audio_result and generated_images:
         print("\nNow generating video from images and audio...\n")
-        try:
-            # Use the same timestamp for the video
-            video_name = f"motivation_{timestamp}"
-            # Get the base directory for finding files
-            from src.utils.config import get_output_paths
-            scripts_dir, _ = get_output_paths()
-            base_dir = os.path.dirname(scripts_dir)
-            
-            # Get paths to audio and image files
-            audio_file = audio_result['audio_path']
-            image_files = generated_images
-            
-            # Generate video
-            video_result = create_video(audio_file, image_files, video_name)
-            
-            if video_result:
-                print(f"✅ Video generated successfully\n")
-            else:
-                print(f"⚠️ Failed to generate video\n")
-        except Exception as e:
-            print(f"❌ Error during video generation: {str(e)}\n")
-    elif not skip_video and not MOVIEPY_AVAILABLE:
-        print("\nVideo generation skipped - required library not installed\n")
-        print("To enable video generation, install required package:")
-        print("  pip install moviepy==1.0.3")
+        
+        # At this point, we've already verified MOVIEPY_AVAILABLE at the beginning
+        
+        if MOVIEPY_AVAILABLE:
+            try:
+                # Use the same timestamp for the video
+                video_name = f"motivation_{timestamp}"
+                # Get the base directory for finding files
+                from src.utils.config import get_output_paths
+                scripts_dir, _ = get_output_paths()
+                base_dir = os.path.dirname(scripts_dir)
+                
+                # Get paths to audio and image files
+                audio_file = audio_result['audio_path']
+                image_files = generated_images
+                
+                # Generate video
+                video_result = create_video(audio_file, image_files, video_name)
+                
+                if video_result:
+                    print(f"✅ Video generated successfully\n")
+                else:
+                    print(f"⚠️ Failed to generate video\n")
+            except Exception as e:
+                print(f"❌ Error during video generation: {str(e)}\n")
+        else:
+            print("\nVideo generation skipped - required library not installed\n")
+            print("To enable video generation, install required packages:")
+            print("  pip install moviepy==1.0.3 decorator==4.4.2 imageio==2.9.0 tqdm==4.64.1 proglog==0.1.10")
     elif not skip_video and (not audio_result or not generated_images):
         print("\nVideo generation skipped - missing audio or images\n")
     else:
