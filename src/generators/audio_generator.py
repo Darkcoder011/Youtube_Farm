@@ -80,17 +80,26 @@ def generate_audio(script_text, audio_name="motivation_audio", voice_type=None, 
                 # Save the complete audio file
                 audio_path = os.path.join(audio_dir, f"{audio_name}.wav")
                 
-                # Process and save all audio chunks
+                # Process all audio chunks, combining them into a single file
                 all_audio = []
+                total_segments = 0
+                total_duration = 0
+                
+                print("Processing script segments:")
                 for i, (gs, ps, audio) in enumerate(generator):
-                    print(f"Generated segment {i+1}: {gs} phonemes, {ps} seconds")
+                    total_segments += 1
+                    total_duration += ps
+                    print(f"  Segment {i+1}: {gs} phonemes, {ps:.2f} seconds")
                     all_audio.append(audio)
                 
-                # Combine all audio chunks
+                # Combine ALL audio chunks into ONE single file
                 if all_audio:
+                    print(f"\nCombining {total_segments} segments into a SINGLE audio file...")
                     combined_audio = np.concatenate(all_audio)
                     sf.write(audio_path, combined_audio, 24000)
-                    print(f"✅ Complete audio saved to: {audio_path}")
+                    print(f"✅ COMPLETE SCRIPT saved as ONE audio file: {audio_path}")
+                    print(f"   - Total duration: {total_duration:.2f} seconds")
+                    print(f"   - File format: WAV (24kHz mono)")
                     
                     success = True
                     return {
