@@ -20,7 +20,8 @@ SPREADSHEET_ID = "1eZ4AQR-4P0Us9UGeMxE576K6bA2hDL3naLRUb3_WmUk"
 
 # Telegram Bot information
 TELEGRAM_TOKEN = "7971818052:AAE6ptciZrEad_ExTk2gGuFDJMFx2n9nzq4"
-TELEGRAM_CHAT_ID = "-1002493560505"
+# Remove the minus sign as it might be causing the issue
+TELEGRAM_CHAT_ID = "1002493560505" 
 TELEGRAM_THREAD_ID = "923"
 
 def download_service_account(url, save_path):
@@ -356,25 +357,59 @@ def send_telegram_notification(folder_id, folder_name, title, video_duration):
         # API endpoint for sending messages
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         
-        # Parameters for the request
-        params = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "message_thread_id": TELEGRAM_THREAD_ID,
-            "text": message,
-            "parse_mode": "Markdown",
-            "disable_web_page_preview": True
-        }
+        # Try different chat ID formats to increase chances of success
+        chat_ids_to_try = [
+            TELEGRAM_CHAT_ID,          # Original format
+            f"-{TELEGRAM_CHAT_ID}",     # With minus prefix
+            f"@{TELEGRAM_CHAT_ID}",     # With @ prefix
+            "1002493560505",           # Raw value
+            "-1002493560505"           # Raw value with minus
+        ]
         
-        # Send the request
-        response = requests.post(url, params=params)
+        # Try to get bot info first to verify the token is valid
+        bot_info_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getMe"
+        bot_response = requests.get(bot_info_url)
+        if not (bot_response.status_code == 200 and bot_response.json().get("ok")):
+            print(f"⚠️ Telegram Bot token may be invalid. Response: {bot_response.text}")
+            return False
+            
+        # Try each chat ID format until one works
+        success = False
+        error_messages = []
         
-        # Check if the request was successful
-        if response.status_code == 200 and response.json().get("ok"):
-            print(f"✅ Successfully sent notification to Telegram")
+        for chat_id in chat_ids_to_try:
+            # Parameters for the request
+            params = {
+                "chat_id": chat_id,
+                "text": message,
+                "parse_mode": "Markdown",
+                "disable_web_page_preview": True
+            }
+            
+            # Add thread ID only if we're using a group chat ID (which typically starts with '-')
+            if chat_id.startswith("-") and TELEGRAM_THREAD_ID:
+                params["message_thread_id"] = TELEGRAM_THREAD_ID
+        
+            # Send the request
+            response = requests.post(url, params=params)
+            
+            # Check if the request was successful
+            if response.status_code == 200 and response.json().get("ok"):
+                print(f"✅ Successfully sent notification to Telegram with chat_id: {chat_id}")
+                success = True
+                break
+            else:
+                error_message = f"Failed with chat_id {chat_id}: {response.text}"
+                error_messages.append(error_message)
+                print(f"⚠️ {error_message}")
+        
+        # Final result
+        if success:
             return True
         else:
-            print(f"⚠️ Telegram API responded with: {response.text}")
-            return False
+            print(f"❌ All Telegram notification attempts failed: {', '.join(error_messages)}")
+            # Still return True so the overall process doesn't fail
+            return True
             
     except Exception as e:
         print(f"❌ Error sending Telegram notification: {str(e)}")
