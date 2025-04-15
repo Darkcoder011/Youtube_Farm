@@ -12,18 +12,18 @@ from googleapiclient.http import MediaFileUpload, MediaIoBaseUpload
 from google.oauth2 import service_account
 
 # Parent folder ID for "Self" in Google Drive
-PARENT_FOLDER_ID = "11BoyAH1HwU2an_2w39l2TF0-Sj3KgJ-H"
-SERVICE_ACCOUNT_URL = "https://drive.google.com/file/d/1NC0n-j3Wrp7mWpSOodC7zupwLCeVcSsj/view?usp=sharing"
+PARENT_FOLDER_ID = "1SbGSv7uZxXsrjOU7L3xs_wRwoUgFhhDv"
+SERVICE_ACCOUNT_URL = "https://drive.google.com/file/d/1ZXLwRGy5Ccm3O5jeQZ-Il0AXwoZ-kPqk/view?usp=sharing"
 
 # Google Sheet information
-SPREADSHEET_ID = "1eZ4AQR-4P0Us9UGeMxE576K6bA2hDL3naLRUb3_WmUk"
+SPREADSHEET_ID = "1zeUDAYO7xopAcJ6COAsLY8Lct99iq8JuP1Rc4gpIsFc"
 
 # Telegram Bot information
-TELEGRAM_TOKEN = "7971818052:AAE6ptciZrEad_ExTk2gGuFDJMFx2n9nzq4"
+TELEGRAM_TOKEN = "7573155251:AAEqmXHDrK8vz-5luypk74lfw-3uYz5bVKk"
 # For supergroups, Telegram API requires the format -100<chat_id>
 TELEGRAM_CHAT_ID = "-1002493560505" 
 # Thread ID from the message link
-TELEGRAM_THREAD_ID = "922"
+TELEGRAM_THREAD_ID = "1114"
 
 def download_service_account(url, save_path):
     """

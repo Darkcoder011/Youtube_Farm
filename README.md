@@ -46,8 +46,6 @@ This project uses Google's Gemini API to generate viral-worthy motivational self
    python main.py --skip-video       # Skip video generation
    ```
 
-   Note: API keys are already configured in `src/utils/config.py`
-
 ## Development
 
 This project follows standard Python package structure for better organization:
@@ -82,7 +80,6 @@ This project follows standard Python package structure for better organization:
 
 ## Note
 
-API keys are already configured in the code, so you can run the application immediately without additional setup.
 
 ## Run on Google Colab
 

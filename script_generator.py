@@ -4,115 +4,115 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
-# List of 200+ self-improvement topics
+# List of 200+ AI, Future Tech & Digital Trends topics
 SELF_IMPROVEMENT_TOPICS = [
-    # Mindset & Psychology
-    "Growth mindset development", "Overcoming limiting beliefs", "Positive psychology techniques", 
-    "Mental resilience building", "Cognitive behavioral strategies", "Mindfulness practices", 
-    "Self-compassion development", "Emotional intelligence mastery", "Impostor syndrome overcoming",
-    "Comfort zone expansion", "Decision-making improvement", "Focus and concentration enhancement",
-    "Belief system transformation", "Identity development", "Self-perception improvement",
-    "Psychological triggers understanding", "Mind-body connection", "Neuroplasticity utilization",
-    "Mental clarity techniques", "Ego transcendence",
+    # AI Fundamentals & Development
+    "Machine learning fundamentals", "Neural network architectures", "Natural language processing", 
+    "Computer vision advancements", "Reinforcement learning techniques", "AI ethics frameworks", 
+    "Deep learning innovations", "AI research frontiers", "Generative AI evolution",
+    "Multimodal AI systems", "AI alignment strategies", "AGI development pathways",
+    "Foundation model architectures", "AI interpretability methods", "Explainable AI techniques",
+    "AI augmentation approaches", "Human-AI collaboration", "Federated learning advances",
+    "AI training methodologies", "Transformer architecture innovations",
     
-    # Productivity & Time Management
-    "Deep work strategies", "Procrastination elimination", "Time blocking methods", 
-    "Priority management", "Goal setting frameworks", "Habit stacking", "Task batching", 
-    "Productivity systems", "Efficiency optimization", "Energy management", 
-    "Morning routine optimization", "Decision fatigue reduction", "Attention management",
-    "Productivity journaling", "Time tracking methods", "Digital minimalism",
-    "Work environment optimization", "Single-tasking mastery", "Focus blocks implementation",
-    "Planning systems",
+    # Future Computing & Infrastructure
+    "Quantum computing advances", "Cloud computing evolution", "Edge computing applications", 
+    "Neuromorphic computing", "Blockchain technologies", "Decentralized networks", "Web3 infrastructure", 
+    "Green computing innovations", "High-performance computing", "Serverless architectures", 
+    "Spatial computing systems", "Advanced cybersecurity frameworks", "Distributed systems design",
+    "Mesh network technologies", "6G communication systems", "Computing sustainability",
+    "Infrastructure optimization", "Computational efficiency", "Exascale computing challenges",
+    "Zero-trust architectures",
     
-    # Health & Wellness
-    "Micronutrient optimization", "Sleep quality improvement", "Mobility enhancement", 
-    "Longevity protocols", "Dietary habit transformation", "Gut health optimization", 
-    "Stress management techniques", "Healing breathwork", "Movement optimization", 
-    "Immune system strengthening", "Cold exposure benefits", "Sauna protocols",
-    "Fasting methods", "Posture improvement", "Hydration optimization",
-    "Muscle recovery techniques", "Inflammation reduction", "Joint health protocols",
-    "Metabolic health optimization", "Hormone balance strategies",
+    # Digital Transformation & Business
+    "Industry 4.0 implementation", "Digital twin technology", "Business AI integration", 
+    "IoT enterprise solutions", "RPA and business automation", "Digital innovation strategies", 
+    "API economy evolution", "Platform business models", "Hyper-personalization techniques", 
+    "Data-driven decision making", "Digital marketing transformation", "Customer experience technologies",
+    "Digital employee experience", "Virtual collaboration tools", "Enterprise knowledge systems",
+    "Organizational AI adoption", "Digital leadership development", "Change management for technology",
+    "Digital ecosystem building", "Technology governance frameworks",
     
-    # Fitness & Physical Development
-    "Progressive overload principles", "Functional movement patterns", "Strength training frameworks", 
-    "Endurance building", "Mobility enhancement", "Flexibility development", 
-    "Athletic performance optimization", "Body composition improvement", "Movement efficiency", 
-    "Training consistency strategies", "Injury prevention protocols", "Workout intensity optimization",
-    "Exercise sequencing", "Recovery optimization", "Movement variation importance",
-    "Training frequency balance", "Body awareness development", "Mind-muscle connection",
-    "Fitness tracking methods", "Specialized training techniques",
+    # Emerging Technology Trends
+    "Extended reality (XR) evolution", "Metaverse development", "Spatial computing applications", 
+    "Brain-computer interfaces", "Synthetic biology advances", "Nanotechnology innovations", 
+    "Advanced robotics systems", "Autonomous vehicle technologies", "Smart city infrastructures", 
+    "Sustainable technology solutions", "Space technology commercialization", "Precision medicine technologies",
+    "Advanced materials science", "Biotechnology convergence", "Energy storage breakthroughs",
+    "Sensory augmentation devices", "Human enhancement technologies", "Carbon capture innovations",
+    "Vertical farming technologies", "Alternative protein technologies",
     
-    # Emotional Intelligence & Relationships
-    "Emotional regulation", "Active listening skills", "Empathy development", 
-    "Relationship boundary setting", "Conflict resolution strategies", "Vulnerability cultivation", 
-    "Trust building methods", "Communication enhancement", "Social skills development", 
-    "Authentic connection creation", "Love languages understanding", "Attachment style awareness",
-    "Forgiveness practice", "Emotional awareness", "Social intelligence development",
-    "Interpersonal effectiveness", "Rejection resilience", "Difficult conversation navigation",
-    "Loneliness overcoming", "Deep relationship cultivation",
+    # Data Science & Analytics
+    "Big data architectures", "Data engineering pipelines", "Predictive analytics models", 
+    "Real-time analytics systems", "Data visualization techniques", "Natural language querying", 
+    "Automated machine learning", "Data mesh architecture", "Decision intelligence frameworks", 
+    "Synthetic data generation", "Data governance strategies", "Time-series analysis methods",
+    "Geospatial analytics", "Graph database applications", "Behavioral analytics systems",
+    "Prescriptive analytics models", "Analytics democratization", "MLOps best practices",
+    "Data storytelling techniques", "Knowledge graph applications",
     
-    # Career & Professional Development
-    "Career capital building", "Professional networking", "Personal branding", 
-    "Leadership development", "Public speaking mastery", "Negotiation skills", 
-    "Professional reinvention", "Remote work optimization", "Workplace effectiveness", 
-    "Job crafting strategies", "Industry pivot techniques", "Career planning frameworks",
-    "Professional boundary setting", "Workplace politics navigation", "Skill stacking",
-    "Professional confidence development", "Resume optimization", "Interview preparation",
-    "Professional relationship cultivation", "Workplace communication enhancement",
+    # Digital Society & Future Work
+    "Remote work evolution", "Digital nomad infrastructure", "Future skills development", 
+    "AI-human workforce integration", "Digital inclusion strategies", "Technology education transformation", 
+    "Universal basic income models", "Platform cooperative systems", "Digital public goods", 
+    "Creator economy platforms", "Digital identity frameworks", "Online community building",
+    "Digital citizenship development", "Virtual learning environments", "Work automation adaptation",
+    "Knowledge worker augmentation", "Gig economy platforms", "Digital wellness practices",
+    "Technological unemployment solutions", "Human-centered technology design",
     
-    # Financial Intelligence
-    "Personal finance fundamentals", "Investment strategies", "Money mindset transformation", 
-    "Income diversification", "Financial independence roadmaps", "Debt elimination strategies", 
-    "Saving optimization", "Wealth building principles", "Financial literacy development", 
-    "Retirement planning", "Tax optimization strategies", "Financial risk management",
-    "Money management systems", "Budgeting frameworks", "Financial goal setting",
-    "Investment psychology", "Financial decision making", "Economic trend awareness",
-    "Financial freedom strategies", "Wealth preservation techniques",
+    # Immersive Technologies
+    "Virtual reality innovations", "Augmented reality platforms", "Mixed reality development", 
+    "Spatial audio technologies", "Haptic feedback systems", "Volumetric capture methods", 
+    "Digital twin environments", "Immersive storytelling techniques", "Metaverse ecosystems", 
+    "Avatar technology development", "Social VR platforms", "Extended reality interfaces",
+    "Immersive learning environments", "Spatial computing applications", "Virtual production techniques",
+    "Augmented workplace solutions", "Immersive collaboration tools", "Digital fashion innovations",
+    "Virtual architecture design", "Synthetic media creation",
     
-    # Personal Development
-    "Self-awareness deepening", "Personal value clarification", "Life purpose discovery", 
-    "Personal mission statement creation", "Character strength development", "Integrity building", 
-    "Authenticity cultivation", "Personal philosophy development", "Self-reflection practices", 
-    "Identity alignment", "Life design frameworks", "Personal vision creation",
-    "Core value integration", "Personal transformation catalysts", "Meaning creation",
-    "Life balance optimization", "Personal growth measurement", "Self-actualization journey",
-    "Perspective expansion", "Life experiment design",
+    # Digital Ethics & Security
+    "AI ethics frameworks", "Algorithmic bias mitigation", "Digital privacy protection", 
+    "Cybersecurity resilience", "Ethical data collection", "Digital rights frameworks", 
+    "Technology governance models", "Misinformation countermeasures", "Quantum cryptography", 
+    "Zero-knowledge protocols", "Secure multiparty computation", "Ethical design practices",
+    "Trust frameworks for technology", "Explainable AI methods", "Digital well-being strategies",
+    "Data sovereignty principles", "Responsible innovation frameworks", "Technology impact assessment",
+    "Digital inclusion practices", "Sustainable technology development",
     
-    # Learning & Skill Acquisition
-    "Learning acceleration techniques", "Deliberate practice methods", "Skill acquisition frameworks", 
-    "Knowledge management systems", "Memory enhancement", "Information processing optimization", 
-    "Critical thinking development", "Creative problem solving", "Analytical reasoning", 
-    "Pattern recognition improvement", "Mental model building", "Reading retention strategies",
-    "Note-taking systems", "Knowledge synthesis", "Input-to-output ratios",
-    "Self-education roadmaps", "Learning transfer maximization", "Depth vs breadth balance",
-    "Learning environment optimization", "Specialized skill development",
+    # Internet Evolution & Networks
+    "Web3 infrastructure development", "Decentralized web protocols", "IoT network architectures", 
+    "5G & 6G applications", "Mesh network innovations", "Network virtualization", 
+    "Low-orbit satellite networks", "Edge intelligence systems", "Distributed ledger technologies", 
+    "Interoperability frameworks", "Protocol innovation", "Content delivery evolution",
+    "Semantic web technologies", "Ambient connectivity", "Machine-to-machine communication",
+    "Network security architectures", "Digital infrastructure resilience", "Information discovery systems",
+    "Personal area networks", "Ultra-wideband applications",
     
-    # Creativity & Expression
-    "Creative thinking enhancement", "Idea generation methods", "Inspiration cultivation", 
-    "Creative process optimization", "Artistic expression development", "Writing improvement", 
-    "Creative block overcoming", "Divergent thinking practice", "Personal style development", 
-    "Creative courage building", "Self-expression methods", "Creative mindset cultivation",
-    "Idea connection frameworks", "Creative constraint utilization", "Flow state accessing",
-    "Creative consistency development", "Feedback integration", "Originality cultivation",
-    "Creative risk-taking", "Creative identity formation",
+    # Human-Tech Interaction
+    "Conversational interface design", "Ambient computing systems", "Gesture recognition technologies", 
+    "Voice computing advances", "Brain-computer interfaces", "Affective computing methods", 
+    "Wearable technology evolution", "Ambient intelligence environments", "Human-centered AI design", 
+    "Digital twin interfaces", "Multimodal interaction systems", "Adaptive interfaces",
+    "Spatial computing interaction", "Zero UI approaches", "Human augmentation interfaces",
+    "Smart environment interaction", "Inclusive design methodologies", "Cognitive load optimization",
+    "Tangible computing interfaces", "Multisensory digital experiences",
     
-    # Extra Topics
-    "Digital detox strategies", "Travel as personal development", "Environmental wellness",
-    "Cultural intelligence development", "Community building", "Legacy creation",
-    "Spiritual growth practices", "Lifestyle design", "Minimalism adoption",
-    "Adventure mindset cultivation", "Life transition navigation", "Courage building",
-    "Resilience development", "Failure recovery strategies", "Personal renaissance engineering"
+    # Extra Technology Trends
+    "Digital sustainability practices", "Synthetic media evolution", "Low-code/no-code platforms",
+    "FinTech infrastructure innovations", "Circular economy technologies", "Smart contract applications",
+    "Regenerative technology approaches", "Computational creativity", "Personalized manufacturing",
+    "Open source infrastructure", "Digital commons development", "Cross-reality systems",
+    "Biodigital convergence", "Autonomous systems governance", "Technology sovereignty frameworks"
 ]
 
 def generate_motivation_script(topic=None):
     """
-    Generates a viral motivational script along with image prompts using Gemini.
+    Generates a viral script on AI, Future Tech & Digital Trends along with image prompts using Gemini.
     
     Args:
-        topic (str, optional): Specific self-improvement topic to focus on. If None, a random topic is selected.
+        topic (str, optional): Specific technology topic to focus on. If None, a random topic is selected.
     
     Returns:
-        tuple: (script, image_prompts) - The motivational script and a list of image prompts
+        tuple: (script, image_prompts) - The generated script and a list of image prompts
     """
     # Load environment variables
     load_dotenv()
@@ -130,20 +130,20 @@ def generate_motivation_script(topic=None):
     
     print(f"Generating viral content on topic: {topic}")
     
-    # Create the prompt for generating a motivational script with image prompts
+    # Create the prompt for generating a script on AI & Future Tech with image prompts
     prompt = f"""
 
-    Create a VIRAL, highly engaging self-improvement script focused on the topic of "{topic}".
+    Create a VIRAL, highly engaging script focused on the AI/technology topic of "{topic}".
     
     Make this content EXTREMELY compelling and shareable - the kind that would get millions of views
     on social media platforms. It should have these characteristics:
     
-    1. An attention-grabbing, emotionally resonant introduction that hooks the reader instantly
-    2. Use psychology-backed insights and techniques that feel fresh and novel
-    3. Include 3-5 counterintuitive or surprising insights/steps related to "{topic}"
-    4. Use powerful storytelling elements that create emotional impact
-    5. Include viral-worthy phrases and quotes that are highly shareable
-    6. Have a conclusion that creates urgency and motivates immediate action
+    1. An attention-grabbing, future-focused introduction that hooks the reader instantly
+    2. Use technology insights and recent advancements that feel cutting-edge and novel
+    3. Include 3-5 counterintuitive or surprising insights/predictions related to "{topic}"
+    4. Use powerful storytelling elements that create a sense of wonder and possibility
+    5. Include viral-worthy phrases and quotes about technology that are highly shareable
+    6. Have a conclusion that creates excitement about future possibilities
     7. For each section, generate a detailed image prompt that would create a stunning visual
        representation perfect for social media sharing
     
@@ -181,16 +181,16 @@ def generate_motivation_script(topic=None):
     
     # Add specific instructions based on the selected topic
     topic_specific_instructions = f"""
-    Additional instructions for this specific topic:
+    Additional instructions for this specific technology topic:
     
     1. For the topic "{topic}", focus on the most surprising and counterintuitive aspects that most people don't know.
-    2. Include at least one science-backed insight that feels novel and enlightening.
-    3. Create a powerful "pattern interrupt" - something that challenges the reader's existing beliefs about {topic}.
-    4. Highlight a common misconception about {topic} and replace it with a more effective perspective.
-    5. Make the content feel exclusive, as if revealing insider secrets.
+    2. Include at least one recent technological breakthrough or research finding that feels cutting-edge.
+    3. Create a powerful "future vision" - something that challenges the reader's existing understanding of {topic}.
+    4. Highlight a common misconception about {topic} and replace it with a more accurate technological perspective.
+    5. Make the content feel exclusive, as if revealing insider knowledge from the tech industry.
     
     The image prompts should be extremely detailed and visually striking - designed to stop scrolling on social media.
-    They should use powerful visual elements, contrasts, and emotionally resonant imagery related to {topic}.
+    They should use futuristic visual elements, high-tech aesthetics, and compelling technological imagery related to {topic}.
     """
     
     # Combine the prompts
@@ -238,11 +238,11 @@ def generate_motivation_script(topic=None):
     return full_response, image_prompts
 
 def get_available_topics():
-    """Returns the list of available self-improvement topics"""
+    """Returns the list of available AI, Future Tech & Digital Trends topics"""
     return SELF_IMPROVEMENT_TOPICS
 
 def get_random_topics(n=5):
-    """Returns a random selection of n self-improvement topics"""
+    """Returns a random selection of n AI, Future Tech & Digital Trends topics"""
     return random.sample(SELF_IMPROVEMENT_TOPICS, min(n, len(SELF_IMPROVEMENT_TOPICS)))
 
 if __name__ == "__main__":
