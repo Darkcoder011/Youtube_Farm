@@ -368,7 +368,7 @@ def send_telegram_notification(folder_id, folder_name, title, video_duration):
         safe_folder_name = escape_html(folder_name)
         
         # Create message with HTML formatting
-        message = f"🎬 <b>Hey boss! Your self-motivation video is ready!</b> 🎬\n\n"
+        message = f"🎬 <b>Hey boss! Your AI & Future Tech video is ready!</b> 🎬\n\n"
         message += f"<b>Title:</b> {safe_title}\n"
         message += f"<b>Duration:</b> {duration_formatted}\n"
         message += f"<b>Folder:</b> {safe_folder_name}\n\n"
@@ -406,9 +406,9 @@ def send_telegram_notification(folder_id, folder_name, title, video_duration):
                 "disable_web_page_preview": True
             }
             
-            # Always include thread ID - based on the link format t.me/c/2493560505/922/923
-            # The "922" appears to be the relevant thread ID based on the link
-            params["message_thread_id"] = "922"  # Hardcode the known working thread ID
+            # Always include thread ID - based on the link format t.me/c/2493560505/1114/1116
+            # The "1114" is the relevant thread ID based on the new link
+            params["message_thread_id"] = "1114"  # Hardcode the correct thread ID
         
             # Send the request
             response = requests.post(url, params=params)
