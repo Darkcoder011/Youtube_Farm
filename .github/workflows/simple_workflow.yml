@@ -14,9 +14,16 @@ on:
         required: true
         default: '2'
   
-  # Run on schedule (once a day at 2 AM UTC)
+  # Run at different times each day for randomness
   schedule:
-    - cron: '0 2 * * *'
+    # Run at different times on different days of the week
+    - cron: '12 3 * * 0'  # Sunday at 3:12 UTC
+    - cron: '42 7 * * 1'  # Monday at 7:42 UTC
+    - cron: '27 14 * * 2' # Tuesday at 14:27 UTC
+    - cron: '55 22 * * 3' # Wednesday at 22:55 UTC
+    - cron: '8 11 * * 4'  # Thursday at 11:08 UTC
+    - cron: '33 19 * * 5' # Friday at 19:33 UTC
+    - cron: '17 5 * * 6'  # Saturday at 5:17 UTC
 
 jobs:
   generate_videos:
