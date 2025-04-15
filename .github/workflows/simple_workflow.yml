@@ -1,3 +1,4 @@
+# Updated workflow file to use continuous_runner.py with storage monitoring
 name: Simplified Video Generation Workflow
 
 on:
