@@ -101,15 +101,130 @@ jobs:
           echo "video_count = 0" >> run_main_loop.py
           echo "" >> run_main_loop.py
           echo "try:" >> run_main_loop.py
+          echo "    # Show initial disk space" >> run_main_loop.py
+          echo "    print('Initial disk space:')" >> run_main_loop.py
+          echo "    subprocess.run(['df', '-h', '.'])" >> run_main_loop.py
+          echo "    print('')" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "    # Function to check storage size and clean up if needed" >> run_main_loop.py
+          echo "    def check_storage_and_cleanup():" >> run_main_loop.py
+          echo "        # Calculate total size of output directories" >> run_main_loop.py
+          echo "        import os" >> run_main_loop.py
+          echo "        total_size_bytes = 0" >> run_main_loop.py
+          echo "        file_sizes = {}" >> run_main_loop.py
+          echo "        # Keep track of oldest files first for deletion" >> run_main_loop.py
+          echo "        all_files = []" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "        # Scan all output directories" >> run_main_loop.py
+          echo "        for directory in ['output/images', 'output/scripts', 'output/audio', 'output/videos']:" >> run_main_loop.py
+          echo "            if os.path.exists(directory):" >> run_main_loop.py
+          echo "                for root, _, files in os.walk(directory):" >> run_main_loop.py
+          echo "                    for file in files:" >> run_main_loop.py
+          echo "                        file_path = os.path.join(root, file)" >> run_main_loop.py
+          echo "                        try:" >> run_main_loop.py
+          echo "                            size = os.path.getsize(file_path)" >> run_main_loop.py
+          echo "                            mtime = os.path.getmtime(file_path)" >> run_main_loop.py
+          echo "                            file_sizes[file_path] = size" >> run_main_loop.py
+          echo "                            total_size_bytes += size" >> run_main_loop.py
+          echo "                            all_files.append((file_path, mtime, size))" >> run_main_loop.py
+          echo "                        except Exception as e:" >> run_main_loop.py
+          echo "                            print(f'Error getting size of {file_path}: {e}')" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "        # Convert to MB" >> run_main_loop.py
+          echo "        total_size_mb = total_size_bytes / (1024 * 1024)" >> run_main_loop.py
+          echo "        print(f'Total storage used: {total_size_mb:.2f} MB')" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "        # Check if we're over the 200 MB limit" >> run_main_loop.py
+          echo "        MB_LIMIT = 200" >> run_main_loop.py
+          echo "        if total_size_mb > MB_LIMIT:" >> run_main_loop.py
+          echo "            print(f'\nWARNING: Storage limit of {MB_LIMIT} MB exceeded! Current usage: {total_size_mb:.2f} MB')" >> run_main_loop.py
+          echo "            print('Starting emergency cleanup to free space...')" >> run_main_loop.py
+          echo "            " >> run_main_loop.py
+          echo "            # Sort files by modification time (oldest first)" >> run_main_loop.py
+          echo "            all_files.sort(key=lambda x: x[1])" >> run_main_loop.py
+          echo "            " >> run_main_loop.py
+          echo "            # Delete files until we're under the limit" >> run_main_loop.py
+          echo "            bytes_to_remove = total_size_bytes - (MB_LIMIT * 0.9 * 1024 * 1024)  # Target 90% of limit" >> run_main_loop.py
+          echo "            bytes_removed = 0" >> run_main_loop.py
+          echo "            " >> run_main_loop.py
+          echo "            for file_path, _, size in all_files:" >> run_main_loop.py
+          echo "                if bytes_removed >= bytes_to_remove:" >> run_main_loop.py
+          echo "                    break" >> run_main_loop.py
+          echo "                " >> run_main_loop.py
+          echo "                try:" >> run_main_loop.py
+          echo "                    os.remove(file_path)" >> run_main_loop.py
+          echo "                    bytes_removed += size" >> run_main_loop.py
+          echo "                    print(f'Deleted {file_path} ({size / (1024 * 1024):.2f} MB)')" >> run_main_loop.py
+          echo "                except Exception as e:" >> run_main_loop.py
+          echo "                    print(f'Error deleting {file_path}: {e}')" >> run_main_loop.py
+          echo "            " >> run_main_loop.py
+          echo "            # Calculate new total after cleanup" >> run_main_loop.py
+          echo "            new_total_mb = (total_size_bytes - bytes_removed) / (1024 * 1024)" >> run_main_loop.py
+          echo "            print(f'Cleanup completed. New storage usage: {new_total_mb:.2f} MB')" >> run_main_loop.py
+          echo "            " >> run_main_loop.py
+          echo "        # Show current disk space" >> run_main_loop.py
+          echo "        print('\nCurrent disk space:')" >> run_main_loop.py
+          echo "        subprocess.run(['df', '-h', '.'])" >> run_main_loop.py
+          echo "        print('')" >> run_main_loop.py
+          echo "        return total_size_mb" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "    # Function to cleanup files from a specific timestamp" >> run_main_loop.py
+          echo "    def cleanup_files(timestamp):" >> run_main_loop.py
+          echo "        print(f\"\nCleaning up files from timestamp {timestamp}...\")" >> run_main_loop.py
+          echo "        pattern = f'*{timestamp}*'" >> run_main_loop.py
+          echo "        # Try to find and delete all files with this timestamp" >> run_main_loop.py
+          echo "        for directory in ['output/images', 'output/scripts', 'output/audio', 'output/videos']:" >> run_main_loop.py
+          echo "            import glob" >> run_main_loop.py
+          echo "            files = glob.glob(os.path.join(directory, pattern))" >> run_main_loop.py
+          echo "            if files:" >> run_main_loop.py
+          echo "                print(f'Removing {len(files)} files from {directory}')" >> run_main_loop.py
+          echo "                for file in files:" >> run_main_loop.py
+          echo "                    try:" >> run_main_loop.py
+          echo "                        os.remove(file)" >> run_main_loop.py
+          echo "                        print(f'Deleted {file}')" >> run_main_loop.py
+          echo "                    except Exception as e:" >> run_main_loop.py
+          echo "                        print(f'Error deleting {file}: {e}')" >> run_main_loop.py
+          echo "        print('Cleanup completed.')" >> run_main_loop.py
+          echo "        # Show current disk space" >> run_main_loop.py
+          echo "        print('\nCurrent disk space after cleanup:')" >> run_main_loop.py
+          echo "        subprocess.run(['df', '-h', '.'])" >> run_main_loop.py
+          echo "        print('')" >> run_main_loop.py
+          echo "" >> run_main_loop.py
           echo "    # Run in a loop until time limit is reached" >> run_main_loop.py
           echo "    while True:" >> run_main_loop.py
           echo "        video_count += 1" >> run_main_loop.py
           echo "        gen_start = datetime.datetime.now()" >> run_main_loop.py
-          echo "        print(f\"\n{'='*80}\nStarting video generation #{video_count} at {gen_start.strftime('%Y-%m-%d %H:%M:%S')}\n{'='*80}\")" >> run_main_loop.py
+          echo "        # Generate a timestamp for this video batch" >> run_main_loop.py
+          echo "        current_timestamp = time.strftime('%Y%m%d_%H%M%S')" >> run_main_loop.py
+          echo "        print(f\"\n{'='*80}\nStarting video generation #{video_count} at {gen_start.strftime('%Y-%m-%d %H:%M:%S')}\nTimestamp: {current_timestamp}\n{'='*80}\")" >> run_main_loop.py
           echo "" >> run_main_loop.py
           echo "        # Run main.py with auto mode enabled" >> run_main_loop.py
           echo "        cmd = ['python', 'main.py', '--auto']" >> run_main_loop.py
           echo "        result = subprocess.run(cmd)" >> run_main_loop.py
+          echo "        # Check storage usage and enforce 200 MB limit" >> run_main_loop.py
+          echo "        print('\nChecking storage usage after video generation...')" >> run_main_loop.py
+          echo "        storage_mb = check_storage_and_cleanup()" >> run_main_loop.py
+          echo "        print(f'Storage after automatic check: {storage_mb:.2f} MB')" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "        # Clean up files from any previous generations (but not current)" >> run_main_loop.py
+          echo "        if video_count > 1:" >> run_main_loop.py
+          echo "            # Clean up files from previous run" >> run_main_loop.py
+          echo "            print('\nCleaning up files from previous video generations...')" >> run_main_loop.py
+          echo "            # Find any files that do not contain the current timestamp" >> run_main_loop.py
+          echo "            for directory in ['output/videos', 'output/images', 'output/scripts', 'output/audio']:" >> run_main_loop.py
+          echo "                import glob" >> run_main_loop.py
+          echo "                files = glob.glob(os.path.join(directory, '*'))" >> run_main_loop.py
+          echo "                for file in files:" >> run_main_loop.py
+          echo "                    if current_timestamp not in file:" >> run_main_loop.py
+          echo "                        try:" >> run_main_loop.py
+          echo "                            os.remove(file)" >> run_main_loop.py
+          echo "                            print(f'Deleted old file: {file}')" >> run_main_loop.py
+          echo "                        except Exception as e:" >> run_main_loop.py
+          echo "                            print(f'Error deleting {file}: {e}')" >> run_main_loop.py
+          echo "" >> run_main_loop.py
+          echo "        # Show current disk space after cleanup" >> run_main_loop.py
+          echo "        print('\nCurrent disk space:')" >> run_main_loop.py
+          echo "        subprocess.run(['df', '-h', '.'])" >> run_main_loop.py
           echo "" >> run_main_loop.py
           echo "        # Calculate and display duration" >> run_main_loop.py
           echo "        gen_end = datetime.datetime.now()" >> run_main_loop.py
