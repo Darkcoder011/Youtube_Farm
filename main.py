@@ -140,8 +140,8 @@ def main(auto_mode=False, voice=None, skip_audio=False, skip_video=False):
     print(f"\nGenerating VIRAL content on: {selected_topic}\n")
     print("Creating content that's designed to be shared and go viral...\n")
     
-    # Generate the motivational script and image prompts
-    script, image_prompts = generate_motivation_script(selected_topic)
+    # Generate the motivational script, image prompts and extract title
+    script, image_prompts, viral_title = generate_motivation_script(selected_topic)
     
     # Get output paths from config
     from src.utils.config import get_output_paths
@@ -149,7 +149,14 @@ def main(auto_mode=False, voice=None, skip_audio=False, skip_video=False):
     
     # Save the script to a file
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    script_file = os.path.join(scripts_dir, f"motivation_script_{timestamp}.md")
+    
+    # Create a clean filename from the viral title
+    clean_title = ''.join(c if c.isalnum() or c == ' ' else '_' for c in viral_title)
+    clean_title = clean_title.replace(' ', '_')[:50]  # Limit length for filenames
+    
+    # Use the viral title in the filename
+    base_name = f"{clean_title}_{timestamp}"
+    script_file = os.path.join(scripts_dir, f"{base_name}.md")
     with open(script_file, "w", encoding="utf-8") as f:
         f.write(script)
     
@@ -167,7 +174,7 @@ def main(auto_mode=False, voice=None, skip_audio=False, skip_video=False):
         
         try:
             # Generate image with a unique name and retry logic
-            image_name = f"motivation_{timestamp}_{i}"
+            image_name = f"{clean_title}_{timestamp}_{i}"
             # Use 100 retry attempts with 20 second delay between each attempt
             image_files = generate_image(prompt, image_name, max_retries=100, retry_delay=20)
             
@@ -193,7 +200,7 @@ def main(auto_mode=False, voice=None, skip_audio=False, skip_video=False):
     if not skip_audio and KOKORO_AVAILABLE and SOUNDFILE_AVAILABLE:
         print("\nNow generating audio narration of the script...\n")
         try:
-            audio_name = f"motivation_{timestamp}"
+            audio_name = f"{clean_title}_{timestamp}"
             audio_result = generate_audio(script, audio_name, voice)
             
             if audio_result:
@@ -219,19 +226,38 @@ def main(auto_mode=False, voice=None, skip_audio=False, skip_video=False):
         
         if MOVIEPY_AVAILABLE:
             try:
-                # Use the same timestamp for the video
-                video_name = f"motivation_{timestamp}"
+                # Use the same base name for the video
+                video_name = f"{clean_title}_{timestamp}"
                 # Get the base directory for finding files
                 from src.utils.config import get_output_paths
                 scripts_dir, _ = get_output_paths()
                 base_dir = os.path.dirname(scripts_dir)
                 
+                # Create SEO-friendly video title and description
+                video_title = viral_title
+                video_description = f"AI & Future Technology Analysis: {selected_topic}\n\n"
+                video_description += f"Discover the latest innovations and future trends in {selected_topic}.\n"
+                video_description += f"This video explores cutting-edge developments, expert insights, and future predictions.\n\n"
+                video_description += f"#ArtificialIntelligence #FutureTech #DigitalTransformation #{selected_topic.replace(' ', '')}"
+                
+                # AI & Tech focused tags
+                video_tags = ["artificial intelligence", "future technology", "tech trends", 
+                             "digital transformation", selected_topic, "innovation", 
+                             "technology analysis", "AI insights", "future predictions"]
+                
                 # Get paths to audio and image files
                 audio_file = audio_result['audio_path']
                 image_files = generated_images
                 
-                # Generate video
-                video_result = create_video(audio_file, image_files, video_name)
+                # Generate video with SEO metadata
+                video_result = create_video(
+                    audio_file, 
+                    image_files, 
+                    video_name,
+                    video_title=video_title,
+                    video_description=video_description,
+                    video_tags=video_tags
+                )
                 
                 if video_result:
                     print(f"✅ Video generated successfully\n")

@@ -11,13 +11,13 @@ from src.utils.topic_data import get_all_topics
 
 def generate_motivation_script(topic=None):
     """
-    Generates a viral motivational script along with image prompts using Gemini.
+    Generates a viral script on AI & Future Tech along with image prompts using Gemini.
     
     Args:
-        topic (str, optional): Specific self-improvement topic to focus on. If None, a random topic is selected.
+        topic (str, optional): Specific technology topic to focus on. If None, a random topic is selected.
     
     Returns:
-        tuple: (script, image_prompts) - The motivational script and a list of image prompts
+        tuple: (script, image_prompts, title) - The script, image prompts, and extracted title
     """
     # Get the API key
     api_key = load_api_key()
@@ -140,4 +140,15 @@ def generate_motivation_script(topic=None):
             prompt = line.replace("IMAGE PROMPT:", "").strip()
             image_prompts.append(prompt)
     
-    return full_response, image_prompts
+    # Extract the title from the response (typically first line starting with # in markdown)
+    title = "AI Future Tech: " + topic  # Default title if we can't extract one
+    lines = full_response.split('\n')
+    for line in lines:
+        if line.strip().startswith('# '):
+            # Extract title without the markdown heading
+            extracted_title = line.replace('# ', '').strip()
+            if extracted_title:
+                title = extracted_title
+                break
+    
+    return full_response, image_prompts, title

@@ -1,6 +1,6 @@
 """
-Video generator module for combining images and audio into a complete video.
-Maximum compatibility version for Google Colab.
+Video generator module for combining images and audio into a complete video with SEO-friendly metadata.
+Maximum compatibility version for Google Colab with AI & Future Tech focus.
 """
 import os
 import glob
@@ -167,19 +167,36 @@ def create_video(audio_file, image_files, output_name=None, duration_per_image=5
                 
                 # Use video name as title if not provided
                 if not video_title:
-                    video_title = os.path.basename(video_path).split('.')[0]
-                    # Clean up the title a bit
-                    video_title = video_title.replace('_', ' ').title()
+                    # Extract base name without timestamp
+                    base_name = os.path.basename(video_path).split('.')[0]
+                    # Check if it follows timestamp pattern or still has default naming
+                    if "_20" in base_name and len(base_name.split('_20')[0]) < 3:
+                        # This is likely a default timestamp-based name, make it more SEO friendly
+                        video_title = "AI Future Tech: Latest Innovations and Digital Trends"
+                    else:
+                        # Try to extract a proper title from the filename
+                        parts = base_name.split('_20')  # Split at timestamp if present
+                        if len(parts) > 0 and parts[0]:
+                            # Clean up the title
+                            video_title = parts[0].replace('_', ' ').title()
+                        else:
+                            # Fallback title
+                            video_title = base_name.replace('_', ' ').title()
                 
-                # Generate a simple description if not provided
+                # Generate a tech-focused description if not provided
                 if not video_description:
-                    video_description = f"Motivational video generated on {datetime.now().strftime('%Y-%m-%d')}\n"
-                    video_description += f"Duration: {audio_duration:.2f} seconds\n"
-                    video_description += f"Contains {num_images} images\n"
+                    # Extract a topic from the title if possible
+                    topic = video_title.split(':')[-1] if ':' in video_title else video_title
+                    video_description = f"AI & Future Technology Analysis: {topic}\n\n"
+                    video_description += f"Discover the latest innovations and future trends in artificial intelligence and technology.\n"
+                    video_description += f"This video explores cutting-edge developments, expert insights, and predictions for the future.\n\n"
+                    video_description += f"#ArtificialIntelligence #FutureTech #DigitalTransformation #TechTrends"
                 
-                # Generate some default tags if not provided
+                # Generate AI & tech focused tags if not provided
                 if not video_tags:
-                    video_tags = ["motivation", "inspiration", "success", "personal development"]
+                    video_tags = ["artificial intelligence", "future technology", "tech trends", 
+                             "digital transformation", "innovation", "technology analysis", 
+                             "AI research", "future predictions", "digital innovation"]
                 
                 # Find the first image to use as thumbnail
                 thumbnail_path = None
