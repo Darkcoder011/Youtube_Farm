@@ -1,3 +1,4 @@
+# Updated night workflow file to use continuous_runner.py with storage monitoring
 name: Nightly Video Generation Workflow
 
 on:
